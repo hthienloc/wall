@@ -1,0 +1,2846 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wallpaper</title>
+
+  <style>
+    /* ---------- fonts (files live in ./fonts/) ---------- */
+    @font-face {
+      font-family: "Google Sans Flex";
+      src: url("fonts/GoogleSansFlex.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Material Symbols Rounded";
+      src: url("fonts/MaterialSymbolsRounded.woff2") format("woff2");
+      font-weight: 100 700;
+      font-style: normal;
+      font-display: block;
+    }
+
+    html {
+      --ui-font: "Google Sans Flex", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    /* icons are written as ligature names, e.g. <span class="ms">palette</span>.
+       They stay hidden until the icon font has loaded, so a missing font never shows raw words. */
+    .ms {
+      display: none;
+      flex: none;
+      font-family: "Material Symbols Rounded";
+      font-weight: 400;
+      font-style: normal;
+      font-size: 20px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      white-space: nowrap;
+      direction: ltr;
+      font-feature-settings: "liga";
+      -webkit-font-feature-settings: "liga";
+      -webkit-font-smoothing: antialiased;
+      font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      user-select: none;
+    }
+
+    html.icons .ms {
+      display: inline-block;
+    }
+
+    /* ---------- themes ---------- */
+    .dark {
+      --md-sys-color-primary: rgb(177 209 138);
+      --md-sys-color-primary-container: rgb(53 78 22);
+      --md-sys-color-secondary: rgb(191 203 173);
+      --md-sys-color-secondary-container: rgb(64 74 51);
+      --md-sys-color-tertiary: rgb(160 208 203);
+      --md-sys-color-tertiary-container: rgb(31 78 75);
+      --md-sys-color-surface: rgb(18 20 14);
+      --md-sys-color-on-surface: rgb(226 227 216);
+      --md-sys-color-inverse-primary: rgb(76 102 43);
+      --md-sys-color-black: rgb(0 0 0);
+    }
+
+    .light {
+      --md-sys-color-primary: rgb(76 102 43);
+      --md-sys-color-primary-container: rgb(205 237 163);
+      --md-sys-color-secondary: rgb(88 98 73);
+      --md-sys-color-secondary-container: rgb(220 231 200);
+      --md-sys-color-tertiary: rgb(56 102 99);
+      --md-sys-color-tertiary-container: rgb(188 236 231);
+      --md-sys-color-surface: rgb(249 250 239);
+      --md-sys-color-on-surface: rgb(26 28 22);
+      --md-sys-color-inverse-primary: rgb(177 209 138);
+      --md-sys-color-black: rgb(0 0 0);
+    }
+
+    /* ---------- stage ---------- */
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--md-sys-color-surface);
+      transition: background-color .4s ease;
+    }
+
+    /* 1920x1080 canvas, scaled to COVER the window so shapes always bleed off the real screen edge */
+    #stage {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: var(--cw, 1920px);
+      height: var(--ch, 1080px);
+      transform-origin: center;
+      background-color: var(--md-sys-color-surface);
+      transition: background-color .4s ease;
+    }
+
+    /* the pattern svg sits behind the shapes. Using mask-image allows us to color it with the accent! */
+    #stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-color: var(--md-sys-color-primary);
+      -webkit-mask-image: var(--pattern, none);
+      -webkit-mask-repeat: repeat;
+      -webkit-mask-size: var(--pattern-size, auto);
+      mask-image: var(--pattern, none);
+      mask-repeat: repeat;
+      mask-size: var(--pattern-size, auto);
+      opacity: var(--pattern-opacity, .1);
+      transition: background-color .4s ease;
+    }
+
+    #stage svg {
+      position: absolute;
+      overflow: visible;
+      user-select: none;
+    }
+
+    #toast {
+      position: fixed;
+      left: 50%;
+      top: 24px;
+      transform: translateX(-50%);
+      max-width: min(90vw, 640px);
+      padding: 12px 18px;
+      border-radius: 16px;
+      font: 14px/1.5 var(--ui-font);
+      text-align: center;
+      color: var(--md-sys-color-on-surface);
+      background: color-mix(in srgb, var(--md-sys-color-surface) 92%, transparent);
+      border: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 18%, transparent);
+      z-index: 30;
+    }
+
+    #toast[hidden] {
+      display: none;
+    }
+
+    /* ---------- M3 Expressive slider ---------- */
+    .m3e-slider {
+      position: relative;
+      width: 100%;
+      height: 40px;
+      flex: none;
+      touch-action: pan-y;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .m3e-slider input[type=range] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .m3e-a,
+    .m3e-i {
+      position: absolute;
+      top: 10px;
+      height: 20px;
+      background-repeat: no-repeat;
+      background-size: var(--w, 200px) 100%;
+      pointer-events: none;
+    }
+
+    .m3e-a {
+      left: 0;
+      border-radius: 10px 4px 4px 10px;
+      background-image: var(--track, linear-gradient(var(--md-sys-color-primary), var(--md-sys-color-primary)));
+    }
+
+    .m3e-i {
+      right: 0;
+      border-radius: 4px 10px 10px 4px;
+      background-image: var(--track, linear-gradient(color-mix(in srgb, var(--md-sys-color-on-surface) 22%, transparent), color-mix(in srgb, var(--md-sys-color-on-surface) 22%, transparent)));
+    }
+
+    .m3e-h {
+      position: absolute;
+      top: 2px;
+      width: 4px;
+      height: 36px;
+      margin-left: -2px;
+      border-radius: 2px;
+      background: var(--md-sys-color-primary);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-sys-color-surface) 80%, transparent);
+      pointer-events: none;
+      z-index: 1;
+      transition: width .15s ease, margin-left .15s ease;
+    }
+
+    .m3e-slider[style*="--track"] .m3e-h {
+      background: var(--md-sys-color-on-surface);
+    }
+
+    .m3e-slider:active .m3e-h {
+      width: 2px;
+      margin-left: -1px;
+    }
+
+    .m3e-slider:has(input:focus-visible) .m3e-h {
+      outline: 2px solid var(--md-sys-color-on-surface);
+      outline-offset: 3px;
+    }
+
+    /* ---------- left toolbar ---------- */
+    #app {
+      display: flex;
+      gap: 16px;
+      height: 100%;
+      padding: 16px;
+    }
+
+    #app:has(#tune[hidden]) {
+      padding: 0;
+    }
+
+    /* the area fills the space; the wallpaper inside is always a square-cornered 16:9 box that fits it */
+    #preview-area {
+      flex: 1;
+      min-width: 0;
+      display: grid;
+      place-items: center;
+      container-type: size;
+    }
+
+    #preview {
+      position: relative;
+      width: min(100cqw, 100cqh * var(--ar, 1.7778));
+      aspect-ratio: var(--ar, 1.7778);
+      overflow: hidden;
+      border-radius: 0;
+      background: var(--md-sys-color-surface);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-sys-color-on-surface) 14%, transparent);
+    }
+
+    #tune {
+      position: relative;
+      flex: none;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 8px 8px 12px;
+      border-radius: 28px;
+      font: 14px var(--ui-font);
+      color: var(--md-sys-color-on-surface);
+      background: color-mix(in srgb, var(--md-sys-color-on-surface) 7%, var(--md-sys-color-surface));
+      transition: background-color .4s ease;
+    }
+
+    #tune[hidden],
+    #tune [hidden] {
+      display: none;
+    }
+
+    .tab-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+      padding: 20px 8px 8px;
+    }
+
+    .tab-body::-webkit-scrollbar {
+      display: none;
+    }
+
+    #tab-global {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .g-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fmt-grid,
+    .pat-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .fmt-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .pat-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .fmt,
+    .pat {
+      border: 0;
+      cursor: pointer;
+      color: inherit;
+      font: 500 12px/1 var(--ui-font);
+      background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+      transition: background-color .15s ease, color .15s ease;
+    }
+
+    .fmt:hover,
+    .pat:hover {
+      background: color-mix(in srgb, var(--md-sys-color-on-surface) 14%, transparent);
+    }
+
+    .fmt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 56px;
+      border-radius: 16px;
+    }
+
+    .fmt i {
+      display: block;
+      border: 2px solid currentColor;
+      border-radius: 3px;
+    }
+
+    .fmt[aria-checked="true"] {
+      background: var(--md-sys-color-primary);
+      color: var(--md-sys-color-surface);
+    }
+
+    .pat {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .pat::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--md-sys-color-primary);
+      -webkit-mask-image: var(--p, none);
+      mask-image: var(--p, none);
+      -webkit-mask-size: var(--ms, 60px auto);
+      mask-size: var(--ms, 60px auto);
+      opacity: .75;
+    }
+
+    .pat[data-p="none"]::before {
+      display: none;
+    }
+
+    .pat[aria-checked="true"] {
+      outline: 2px solid var(--md-sys-color-primary);
+      outline-offset: 2px;
+    }
+
+    .fmt i.dashed {
+      border-style: dashed;
+    }
+
+    .custom-size {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: color-mix(in srgb, var(--md-sys-color-on-surface) 65%, transparent);
+    }
+
+    .custom-size input {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+      color: var(--md-sys-color-on-surface);
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 30%, transparent);
+      background: transparent;
+      -moz-appearance: textfield;
+    }
+
+    .custom-size input::-webkit-outer-spin-button,
+    .custom-size input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    #fmt-res {
+      font-size: 12px;
+      color: color-mix(in srgb, var(--md-sys-color-on-surface) 65%, transparent);
+    }
+
+    #tab-shape {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    #shape-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      text-align: center;
+      color: color-mix(in srgb, var(--md-sys-color-on-surface) 70%, transparent);
+    }
+
+    @media (max-width: 760px) {
+      #app {
+        flex-direction: column;
+      }
+
+      #tune {
+        width: auto;
+        max-height: 48%;
+      }
+    }
+
+    #tune[hidden] {
+      display: none;
+    }
+
+    #tune .ms {
+      font-size: 20px;
+    }
+
+    #tune label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    #tune input#hex {
+      width: 100%;
+      font: inherit;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 30%, transparent);
+      background: transparent;
+      color: var(--md-sys-color-on-surface);
+    }
+
+    #tune input#hex::placeholder {
+      color: color-mix(in srgb, var(--md-sys-color-on-surface) 60%, transparent);
+    }
+
+    #tune #shapes {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 4px;
+      padding: 12px 16px;
+      font: 500 15px/1 var(--ui-font);
+      border: 0;
+      border-radius: 999px;
+      cursor: pointer;
+      color: var(--md-sys-color-surface);
+      background: var(--md-sys-color-primary);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+    }
+
+    #tune #shapes:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ---------- shape sheet (modelled on the bento mockup's bottom sheet) ---------- */
+    #sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 300ms cubic-bezier(0.3, 0, 0, 1);
+      z-index: 20;
+    }
+
+    #sheet-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #sheet {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      transform: translate(-50%, 100%);
+      width: min(880px, calc(100vw - 24px));
+      max-height: min(78vh, 720px);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 20px 20px;
+      border-radius: 28px 28px 0 0;
+      background: color-mix(in srgb, var(--md-sys-color-on-surface) 9%, var(--md-sys-color-surface));
+      color: var(--md-sys-color-on-surface);
+      font: 14px/1.4 var(--ui-font);
+      outline: none;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 300ms cubic-bezier(0.3, 0, 0, 1),
+        transform 300ms cubic-bezier(0.3, 0, 0, 1);
+    }
+
+    #sheet-backdrop.active #sheet {
+      opacity: 1;
+      transform: translate(-50%, 0);
+      pointer-events: auto;
+    }
+
+    .sheet-handle {
+      flex: none;
+      width: 36px;
+      height: 4px;
+      margin-bottom: 8px;
+      align-self: center;
+      border-radius: 9999px;
+      background: var(--md-sys-color-on-surface);
+      opacity: .4;
+    }
+
+    .sheet-title {
+      flex: none;
+      padding: 0 8px 12px;
+      font-size: 1.05rem;
+      font-weight: 500;
+      text-align: center;
+      color: var(--md-sys-color-on-surface);
+    }
+
+    .sheet-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 16px;
+      padding: 2px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .sheet-grid::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Containerless shape cards */
+    .shape-card {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .shape-card:focus-visible {
+      outline: 2px solid var(--md-sys-color-primary);
+      outline-offset: 2px;
+      border-radius: 12px;
+    }
+
+    .shape-card svg {
+      flex: none;
+      width: 56px;
+      height: 56px;
+      overflow: visible;
+    }
+
+    /* Unified subtle fills */
+    .shape-card path {
+      fill: color-mix(in srgb, var(--md-sys-color-on-surface) 40%, transparent);
+    }
+
+    /* ---------- right-click shape menu (same glass panel as the left toolbar) ---------- */
+    #shape-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      font: 14px var(--ui-font);
+      color: var(--md-sys-color-on-surface);
+    }
+
+    #shape-menu[hidden],
+    #shape-menu [hidden] {
+      display: none;
+    }
+
+    #shape-menu .ms {
+      font-size: 20px;
+    }
+
+    .sm-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .sm-title small {
+      font-size: 12.5px;
+      font-weight: 400;
+      opacity: .65;
+    }
+
+    .sm-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sm-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      opacity: .85;
+    }
+
+    .sm-val {
+      margin-left: auto;
+      opacity: .7;
+    }
+
+    .sm-swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .sm-swatch {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border-radius: 50%;
+      border: 2px solid color-mix(in srgb, var(--md-sys-color-on-surface) 28%, transparent);
+      background: var(--sw);
+      cursor: pointer;
+    }
+
+    .sm-none {
+      height: 26px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 30%, transparent);
+      background: transparent;
+      color: inherit;
+      font: 13px var(--ui-font);
+      cursor: pointer;
+    }
+
+    .sm-swatch[aria-checked="true"],
+    .sm-none[aria-checked="true"] {
+      outline: 2px solid var(--md-sys-color-on-surface);
+      outline-offset: 2px;
+    }
+
+    .sm-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .sm-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 10px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 30%, transparent);
+      background: transparent;
+      color: inherit;
+      font: 500 13px/1 var(--ui-font);
+      cursor: pointer;
+    }
+
+    .sm-delete {
+      color: color-mix(in srgb, #ff5449 85%, var(--md-sys-color-on-surface));
+      border-color: color-mix(in srgb, #ff5449 55%, transparent);
+    }
+
+    #stage path,
+    #stage rect {
+      transition: fill .4s ease;
+    }
+
+    #stage path[data-i] {
+      cursor: grab;
+    }
+
+    #stage path[data-i]:active {
+      cursor: grabbing;
+    }
+
+    /* ================= Material 3 Expressive ================= */
+    :root {
+      --sc: color-mix(in srgb, var(--md-sys-color-on-surface) 6%, var(--md-sys-color-surface));
+      /* surface container */
+      --sch: color-mix(in srgb, var(--md-sys-color-on-surface) 11%, var(--md-sys-color-surface));
+      /* surface container high */
+      --on-sv: color-mix(in srgb, var(--md-sys-color-on-surface) 68%, transparent);
+      /* on surface variant */
+      --on-p: var(--md-sys-color-surface);
+      --on-pc: color-mix(in srgb, var(--md-sys-color-primary) 30%, var(--md-sys-color-on-surface));
+      --on-sc: color-mix(in srgb, var(--md-sys-color-secondary) 25%, var(--md-sys-color-on-surface));
+      --outline-v: color-mix(in srgb, var(--md-sys-color-on-surface) 16%, transparent);
+      --spring: 380ms cubic-bezier(0.42, 1.67, 0.21, 0.9);
+      /* fast spatial spring: shapes, sizes */
+      --eff: 200ms cubic-bezier(0.34, 0.8, 0.34, 1);
+      /* fast effects: color, opacity */
+    }
+
+    #tune {
+      background: var(--sc);
+    }
+
+    #tune label,
+    .sm-label {
+      color: var(--md-sys-color-on-surface);
+      font-weight: 500;
+      opacity: 1;
+    }
+
+    #tune .ms {
+      color: var(--on-sv);
+    }
+
+    .sm-title {
+      font-size: 16px;
+    }
+
+    .sm-title small,
+    .sm-val,
+    #fmt-res,
+    #shape-empty {
+      color: var(--on-sv);
+      opacity: 1;
+    }
+
+    /* --- M3E tabs --- */
+    .tabs {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      border-bottom: 1px solid var(--outline-v);
+    }
+
+    .tab {
+      position: relative;
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 2px;
+      height: 64px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 20px 20px 0 0;
+      background: transparent;
+      color: var(--on-sv);
+      cursor: pointer;
+      font: 600 14px var(--ui-font);
+      white-space: nowrap;
+      transition: background var(--eff), color var(--eff);
+    }
+
+    .tab:hover {
+      background: var(--sch);
+    }
+
+    .tab[aria-selected="true"] {
+      color: var(--md-sys-color-primary);
+    }
+
+    #tune .tab[aria-selected="true"] .ms {
+      color: inherit;
+    }
+
+    .tab:focus-visible {
+      outline: 2px solid var(--md-sys-color-primary);
+      outline-offset: -2px;
+    }
+
+    .tab-indicator {
+      position: absolute;
+      z-index: 2;
+      bottom: -1px;
+      left: 0;
+      width: 32px;
+      height: 3px;
+      border-radius: 3px 3px 0 0;
+      background: var(--md-sys-color-primary);
+      pointer-events: none;
+      transition: left 300ms cubic-bezier(0.2, 0.8, 0.2, 1), width 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    #tab-global:not([hidden]),
+    #tab-shape:not([hidden]) {
+      animation: tab-fade-in 220ms ease both;
+    }
+
+    @keyframes tab-fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    /* --- M3E connected button group --- */
+    .connected-button-group {
+      display: flex;
+      column-gap: 2px;
+      width: 100%;
+    }
+
+    .connected-button-group[hidden] {
+      display: none;
+    }
+
+    .connected-button-group button {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--md-sys-color-primary-container);
+      color: var(--on-pc);
+      font: 500 14px var(--ui-font);
+      cursor: pointer;
+      outline: none;
+      transition: border-radius var(--spring), background var(--eff), color var(--eff), box-shadow var(--eff);
+    }
+
+    .connected-button-group button:hover {
+      box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent);
+    }
+
+    #tune .connected-button-group button .ms {
+      color: inherit;
+    }
+
+    .connected-button-group button:first-of-type {
+      border-radius: 100px 20px 20px 100px;
+    }
+
+    .connected-button-group button:last-of-type {
+      border-radius: 20px 100px 100px 20px;
+    }
+
+    .connected-button-group button[aria-checked="true"] {
+      background: var(--md-sys-color-primary);
+      color: var(--on-p);
+      border-radius: 100px;
+    }
+
+    .connected-button-group button:focus-visible {
+      outline: 2px solid var(--md-sys-color-on-surface);
+      outline-offset: 2px;
+    }
+
+    /* --- selection tiles: tonal, and they morph shape when selected --- */
+    .fmt,
+    .pat {
+      background: var(--sch);
+      color: var(--md-sys-color-on-surface);
+      transition: border-radius var(--spring), background var(--eff), color var(--eff);
+    }
+
+    .fmt {
+      border-radius: 16px;
+    }
+
+    .pat {
+      border-radius: 16px;
+    }
+
+    .fmt:hover,
+    .pat:hover {
+      background: color-mix(in srgb, var(--sch) 88%, var(--md-sys-color-on-surface));
+    }
+
+    .fmt:active,
+    .pat:active {
+      border-radius: 10px;
+    }
+
+    .fmt[aria-checked="true"],
+    .pat[aria-checked="true"] {
+      background: var(--md-sys-color-primary-container);
+      color: var(--on-pc);
+      border-radius: 28px;
+      outline: none;
+    }
+
+    .fmt:focus-visible,
+    .pat:focus-visible,
+    .sm-swatch:focus-visible,
+    .sm-none:focus-visible,
+    .sm-btn:focus-visible,
+    #shapes:focus-visible {
+      outline: 2px solid var(--md-sys-color-primary);
+      outline-offset: 2px;
+    }
+
+    .pat::before {
+      background: var(--md-sys-color-primary);
+      opacity: .8;
+    }
+
+    /* --- buttons: tonal (secondary container), state layers, press morph --- */
+    .sm-btn {
+      border: 0;
+      border-radius: 20px;
+      padding: 12px 10px;
+      background: var(--md-sys-color-secondary-container);
+      color: var(--on-sc);
+      transition: border-radius var(--spring), box-shadow var(--eff);
+    }
+
+    .sm-btn:hover {
+      box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent);
+    }
+
+    .sm-btn:active {
+      border-radius: 12px;
+      box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 12%, transparent);
+    }
+
+    #tune .sm-btn .ms {
+      color: inherit;
+    }
+
+    .sm-delete {
+      background: color-mix(in srgb, #ff5449 22%, var(--sc));
+      color: color-mix(in srgb, #ff5449 55%, var(--md-sys-color-on-surface));
+      border: 0;
+    }
+
+    #tune #shapes {
+      width: 100%;
+      height: 40px;
+      margin-top: 0;
+      padding: 0 16px;
+      font: 600 14px/1 var(--ui-font);
+      border-radius: 20px;
+      color: var(--on-p);
+      background: var(--md-sys-color-primary);
+      box-shadow: none;
+      filter: none;
+      transition: border-radius var(--spring), box-shadow var(--eff);
+    }
+
+    #tune #shapes .ms {
+      color: inherit;
+      font-size: 20px;
+    }
+
+    #tune #shapes:hover {
+      box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--on-p) 8%, transparent);
+      filter: none;
+    }
+
+    #tune #shapes:active {
+      border-radius: 12px;
+      box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--on-p) 12%, transparent);
+    }
+
+    /* --- swatches --- */
+    .sm-swatch {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--md-sys-color-on-surface) 25%, transparent);
+      transition: outline-offset var(--spring);
+    }
+
+    .sm-swatch[aria-checked="true"],
+    .sm-none[aria-checked="true"] {
+      outline: 3px solid var(--md-sys-color-primary);
+      outline-offset: 2px;
+    }
+
+    .sm-none {
+      height: 30px;
+      border: 0;
+      background: var(--sch);
+      border-radius: 15px;
+    }
+
+    /* --- text fields: outlined, primary focus ring --- */
+    #tune input#hex,
+    .custom-size input {
+      border-radius: 16px;
+      padding: 10px 16px;
+      border: 1px solid color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+      background: transparent;
+      transition: border-color var(--eff), box-shadow var(--eff);
+    }
+
+    #tune input#hex:hover,
+    .custom-size input:hover {
+      border-color: var(--md-sys-color-on-surface);
+    }
+
+    #tune input#hex:focus,
+    .custom-size input:focus {
+      outline: none;
+      border-color: var(--md-sys-color-primary);
+      box-shadow: 0 0 0 1px var(--md-sys-color-primary);
+    }
+
+    /* --- bottom sheet + preview --- */
+    #sheet {
+      background: var(--sc);
+      border-radius: 32px 32px 0 0;
+    }
+
+
+
+    /* --- footer: export + clear --- */
+    .tune-foot {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 24px;
+      border-top: 1px solid var(--outline-v);
+    }
+
+
+    #tune #shapes[hidden] { display: none; }
+
+    /* --- toolbar, minimized rail, shape title --- */
+    .tune-bar { display: flex; align-items: center; gap: 4px; padding: 0 4px 8px; }
+    .tune-bar-spacer { flex: 1; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; padding: 0; border: 0; border-radius: 20px;
+      background: transparent; color: var(--on-sv); cursor: pointer;
+      transition: border-radius var(--spring), background var(--eff), color var(--eff), box-shadow var(--eff);
+    }
+    #tune .icon-btn .ms { color: inherit; font-size: 24px; }
+    .icon-btn:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); color: var(--md-sys-color-on-surface); }
+    .icon-btn:active { border-radius: 12px; background: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent); }
+    .icon-btn:disabled { opacity: .38; pointer-events: none; }
+    .icon-btn:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: 2px; }
+    .icon-btn.tonal { background: var(--md-sys-color-primary-container); color: var(--on-pc); border-radius: 14px; }
+    .icon-btn.tonal:hover { background: var(--md-sys-color-primary-container); box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent); color: var(--on-pc); }
+    .icon-btn.tonal:active { border-radius: 10px; background: var(--md-sys-color-primary-container); }
+
+    #tune { transition: width 300ms cubic-bezier(0.2, 0, 0, 1), background-color .4s ease; }
+    #tune.mini { width: 72px; padding: 8px; overflow: hidden; }
+    #tune.mini .tabs, #tune.mini .tab-body { display: none; }
+    #tune.mini .tune-bar { flex-direction: column; align-items: center; gap: 8px; padding: 0; }
+    #tune.mini .tune-bar-spacer { display: none; }
+    @media (max-width: 760px) {
+      #tune.mini { width: auto; }
+      #tune.mini .tune-bar { flex-direction: row; justify-content: center; }
+    }
+
+    .sm-title { align-items: center; }
+    .sm-name {
+      display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 6px 0 12px;
+      border: 0; border-radius: 18px; cursor: pointer;
+      background: var(--md-sys-color-secondary-container); color: var(--on-sc);
+      font: 600 15px var(--ui-font);
+      transition: border-radius var(--spring), box-shadow var(--eff);
+    }
+    .sm-name:hover { box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent); }
+    .sm-name:active { border-radius: 10px; box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 12%, transparent); }
+    .sm-name:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: 2px; }
+    #tune .sm-name .ms { color: inherit; font-size: 20px; }
+
+
+    /* --- fixed-width content so expanding/minimizing only reveals or clips it (no reflow) --- */
+    #tune { overflow: hidden; }
+    .tune-inner { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 304px; }
+    #tune.mini .tune-inner { width: 56px; }
+    #tune.mini .bar-extra { display: none; }
+    @media (max-width: 760px) { .tune-inner, #tune.mini .tune-inner { width: auto; } }
+
+    /* --- export menu --- */
+    .menu-wrap { position: relative; }
+    .export-menu {
+      position: absolute; top: calc(100% + 6px); right: 0; z-index: 10;
+      display: flex; flex-direction: column; gap: 2px; width: 212px; padding: 8px;
+      border-radius: 16px; background: var(--sch);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .25), 0 8px 24px rgba(0, 0, 0, .2);
+      animation: tab-fade-in 160ms ease both;
+    }
+    .export-menu[hidden] { display: none; }
+    .export-menu button {
+      display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px;
+      border: 0; border-radius: 12px; background: transparent; color: var(--md-sys-color-on-surface);
+      font: 500 14px var(--ui-font); text-align: left; cursor: pointer;
+      transition: background var(--eff), border-radius var(--spring);
+    }
+    .export-menu button:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
+    .export-menu button:active { border-radius: 8px; background: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent); }
+    .export-menu button:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: -2px; }
+    .export-menu button span:last-child { display: flex; flex-direction: column; gap: 2px; }
+    .export-menu small { font-size: 12px; font-weight: 400; color: var(--on-sv); }
+    #tune .export-menu .ms { color: var(--on-sv); font-size: 22px; }
+
+    /* --- add shape: pinned bar at the bottom of the panel --- */
+    .add-bar { padding: 12px 8px 0; }
+    .add-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; height: 48px; border: 0; border-radius: 24px; cursor: pointer;
+      background: var(--md-sys-color-primary); color: var(--on-p); font: 600 15px var(--ui-font);
+      transition: border-radius var(--spring), box-shadow var(--eff);
+    }
+    #tune .add-btn .ms { color: inherit; font-size: 24px; }
+    .add-btn:hover { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--on-p) 8%, transparent); }
+    .add-btn:active { border-radius: 14px; box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--on-p) 12%, transparent); }
+    .add-btn:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: 2px; }
+    #tune.mini .add-bar { padding: 8px 0 0; }
+    #tune.mini .add-btn { width: 40px; height: 40px; margin: 0 auto; border-radius: 14px; background: var(--md-sys-color-primary-container); color: var(--on-pc); }
+    #tune.mini .add-btn:hover { box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent); }
+    #tune.mini .add-btn:active { border-radius: 10px; }
+    #tune.mini .add-label { display: none; }
+
+
+    /* --- in-panel shape picker --- */
+    /* the settings and the picker are two stacked views; the picker slides over the settings */
+    .views { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+    .view { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    .view-main {
+      transition: transform 450ms cubic-bezier(0.05, 0.7, 0.1, 1), visibility 0s;
+    }
+    .view-picker {
+      background: var(--sc);
+      visibility: hidden; transform: translateX(100%);
+      transition: transform 300ms cubic-bezier(0.3, 0, 0.8, 0.15), visibility 0s linear 300ms;
+    }
+    #tune.picking .view-main {
+      visibility: hidden; transform: translateX(-18%);
+      transition: transform 300ms cubic-bezier(0.3, 0, 0.8, 0.15), visibility 0s linear 300ms;
+    }
+    #tune.picking .view-picker {
+      visibility: visible; transform: none;
+      transition: transform 450ms cubic-bezier(0.05, 0.7, 0.1, 1), visibility 0s;
+    }
+    #tune.mini .view-picker { display: none; }
+
+    .shape-card path { transition: fill 220ms cubic-bezier(0.34, 0.8, 0.34, 1); }
+    .picker-grid .shape-card.current { background: var(--md-sys-color-primary-container); border-radius: 28px; }
+    .picker-grid .shape-card.current path { fill: var(--on-pc); }
+    .picker-head { display: flex; align-items: center; gap: 8px; padding: 0 4px 8px; border-bottom: 1px solid var(--outline-v); }
+    .picker-titles { display: flex; flex-direction: column; gap: 2px; }
+    #picker-title { font: 600 16px var(--ui-font); }
+    .picker-titles small { font-size: 12px; color: var(--on-sv); }
+    .picker-grid {
+      flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); align-content: start;
+      gap: 4px; padding: 12px 4px 4px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+    }
+    .picker-grid::-webkit-scrollbar { display: none; }
+    .picker-grid .shape-card { padding: 8px 0; border-radius: 16px; transition: background var(--eff), border-radius var(--spring); }
+    .picker-grid .shape-card:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
+    .picker-grid .shape-card:hover path { fill: var(--md-sys-color-primary); }
+    .picker-grid .shape-card:active { border-radius: 10px; }
+
+
+    /* --- shape header: previous / next, name + random shape --- */
+    .shape-nav { display: flex; align-items: center; justify-content: space-between; margin: -4px 0 -2px; }
+    .shape-count { font: 500 14px var(--ui-font); color: var(--on-sv); }
+    .sm-title { justify-content: flex-start; gap: 8px; }
+    .sm-icon {
+      margin-left: auto;
+      display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0;
+      border: 0; border-radius: 18px; cursor: pointer;
+      background: var(--md-sys-color-secondary-container); color: var(--on-sc);
+      transition: border-radius var(--spring), box-shadow var(--eff);
+    }
+    .sm-icon:hover { box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 8%, transparent); }
+    .sm-icon:active { border-radius: 10px; box-shadow: inset 0 0 0 999px color-mix(in srgb, currentColor 12%, transparent); }
+    .sm-icon:focus-visible { outline: 2px solid var(--md-sys-color-primary); outline-offset: 2px; }
+    #tune .sm-icon .ms { color: inherit; font-size: 20px; }
+    .picker-titles { min-width: 0; }
+    #picker-title { white-space: nowrap; }
+
+    /* overlap "none" is an icon */
+    .sm-none { width: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+    #tune .sm-none .ms { font-size: 18px; color: var(--on-sv); }
+
+    /* --- keyboard shortcuts dialog --- */
+    .m3-dialog {
+      width: min(640px, 92vw); max-height: min(82vh, 760px); padding: 0; border: 0; border-radius: 28px;
+      background: var(--sch); color: var(--md-sys-color-on-surface); font: 14px var(--ui-font); overflow: hidden;
+    }
+    .m3-dialog[open] { display: flex; flex-direction: column; animation: dialog-in 300ms cubic-bezier(0.05, 0.7, 0.1, 1) both; }
+    .m3-dialog::backdrop { background: rgba(0, 0, 0, .42); }
+    @keyframes dialog-in { from { opacity: 0; transform: scale(.92) translateY(12px); } to { opacity: 1; transform: none; } }
+    .dlg-head { display: flex; align-items: center; gap: 12px; padding: 16px 12px 8px 24px; }
+    .dlg-head h2 { flex: 1; margin: 0; font: 600 22px var(--ui-font); }
+    .dlg-body { overflow-y: auto; padding: 8px 24px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px 36px; }
+    @media (max-width: 600px) { .dlg-body { grid-template-columns: 1fr; } }
+    .dlg-group h3 { margin: 0 0 6px; font: 600 12px var(--ui-font); letter-spacing: .06em; text-transform: uppercase; color: var(--md-sys-color-primary); }
+    .dlg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; }
+    .dlg-row > span:first-child { color: var(--md-sys-color-on-surface); line-height: 1.35; }
+    .dlg-row small { color: var(--on-sv); font-size: 12px; }
+    .dlg-keys { display: flex; gap: 4px; flex-shrink: 0; }
+    kbd {
+      min-width: 26px; padding: 3px 8px; border-radius: 8px; text-align: center;
+      font: 500 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
+      box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--md-sys-color-on-surface) 22%, transparent);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      #app *,
+      #sheet {
+        transition-duration: 1ms !important;
+        animation-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <aside id="tune">
+      <div class="tune-inner">
+      <div class="tune-bar">
+        <button type="button" class="icon-btn" id="collapse" title="Minimize panel (S)" aria-label="Minimize panel" aria-expanded="true"><span class="ms" aria-hidden="true">menu_open</span></button>
+        <button type="button" class="icon-btn" id="help-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><span class="ms" aria-hidden="true">keyboard</span></button>
+        <span class="tune-bar-spacer"></span>
+        <button type="button" class="icon-btn bar-extra" id="import-json" title="Import a layout from JSON (or drop the file onto the page)" aria-label="Import JSON"><span class="ms" aria-hidden="true">upload_file</span></button>
+        <div class="menu-wrap bar-extra">
+          <button type="button" class="icon-btn" id="export-btn" title="Export" aria-label="Export" aria-haspopup="menu" aria-expanded="false"><span class="ms" aria-hidden="true">download</span></button>
+          <div class="export-menu" id="export-menu" role="menu" hidden>
+            <button type="button" role="menuitem" id="export-png"><span class="ms" aria-hidden="true">image</span><span>PNG 2×<small id="exp-2x"></small></span></button>
+            <button type="button" role="menuitem" id="export-png1"><span class="ms" aria-hidden="true">image</span><span>PNG 1×<small id="exp-1x"></small></span></button>
+            <button type="button" role="menuitem" id="export-json" title="A layout file you can import into DankMaterialShell as a wallpaper (also re-importable here)"><span class="ms" aria-hidden="true">data_object</span><span>JSON layout<small>Import as a wallpaper in DankMaterialShell</small></span></button>
+          </div>
+        </div>
+        <button type="button" class="icon-btn" id="undo-btn" title="Undo (Z)" aria-label="Undo" disabled><span class="ms" aria-hidden="true">undo</span></button>
+        <button type="button" class="icon-btn" id="redo-btn" title="Redo (Y)" aria-label="Redo" disabled><span class="ms" aria-hidden="true">redo</span></button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+      <div class="views">
+      <div class="view view-main" id="view-main">
+      <div class="tabs" role="tablist" aria-label="Settings">
+        <span class="tab-indicator" aria-hidden="true"></span>
+        <button type="button" class="tab" role="tab" id="tab-btn-global" aria-controls="tab-global" data-tab="global" aria-selected="true"><span class="ms"
+            aria-hidden="true">tune</span>Global</button>
+        <button type="button" class="tab" role="tab" id="tab-btn-shape" aria-controls="tab-shape" data-tab="shape" aria-selected="false" tabindex="-1"><span
+            class="ms" aria-hidden="true">category</span>Shape</button>
+      </div>
+      <div class="tab-body" tabindex="-1">
+        <section id="tab-global" role="tabpanel" aria-labelledby="tab-btn-global">
+          <div class="g-group">
+            <label><span class="ms" aria-hidden="true">brightness_6</span>Theme</label>
+            <div class="connected-button-group" id="theme" role="radiogroup" aria-label="Theme">
+              <button type="button" role="radio" data-theme="light" aria-checked="false"><span class="ms"
+                  aria-hidden="true">light_mode</span>Light</button>
+              <button type="button" role="radio" data-theme="dark" aria-checked="true"><span class="ms"
+                  aria-hidden="true">dark_mode</span>Dark</button>
+            </div>
+          </div>
+          <div class="g-group">
+            <label><span class="ms" aria-hidden="true">aspect_ratio</span>Format</label>
+            <div class="fmt-grid" id="fmt-grid" role="radiogroup" aria-label="Screen proportions"></div>
+            <div class="connected-button-group" id="orient" role="radiogroup" aria-label="Orientation">
+              <button type="button" role="radio" data-o="landscape" aria-checked="true">Landscape</button>
+              <button type="button" role="radio" data-o="portrait" aria-checked="false">Portrait</button>
+            </div>
+            <div class="custom-size" id="custom-size" hidden>
+              <input id="custom-w" type="number" min="320" max="7680" step="1" aria-label="Width in pixels">
+              <span aria-hidden="true">×</span>
+              <input id="custom-h" type="number" min="320" max="7680" step="1" aria-label="Height in pixels">
+              <span aria-hidden="true">px</span>
+            </div>
+            <div id="fmt-res"></div>
+          </div>
+          <div class="g-group">
+            <label for="hue"><span class="ms" aria-hidden="true">palette</span>Hue</label>
+            <input id="hue" type="range" min="0" max="360" step="0.5" value="0">
+            <input id="hex" type="text" maxlength="7" placeholder="#hex" spellcheck="false" autocomplete="off"
+              title="Type a hex color to use its hue">
+          </div>
+          <div class="g-group">
+            <label><span class="ms" aria-hidden="true">texture</span>Pattern</label>
+            <div class="pat-grid" id="pat-grid" role="radiogroup" aria-label="Background pattern"></div>
+          </div>
+          <div class="g-group">
+            <label for="pscale"><span class="ms" aria-hidden="true">zoom_in</span>Pattern size</label>
+            <input id="pscale" type="range" min="0.5" max="8" step="0.1" value="1">
+          </div>
+          <div class="g-group">
+            <label for="popacity"><span class="ms" aria-hidden="true">contrast</span>Pattern strength</label>
+            <input id="popacity" type="range" min="2" max="40" step="1" value="10">
+          </div>
+          <div class="tune-foot">
+            <button type="button" class="sm-btn sm-delete" id="clear-all" title="Clear everything (R, R)"><span
+                class="ms" aria-hidden="true">delete_sweep</span><span id="clear-label">Clear everything</span></button>
+          </div>
+        </section>
+        <section id="tab-shape" role="tabpanel" aria-labelledby="tab-btn-shape" hidden>
+          <div id="shape-empty">
+            <span>No shape selected. Click one on the wallpaper, or add a new one.</span>
+          </div>
+          <div id="shape-menu" hidden>
+            <div class="shape-nav">
+              <button type="button" class="icon-btn" id="sm-prev" title="Previous shape ([)" aria-label="Previous shape"><span class="ms" aria-hidden="true">chevron_left</span></button>
+              <span class="shape-count" id="sm-layer" aria-live="polite"></span>
+              <button type="button" class="icon-btn" id="sm-next" title="Next shape (])" aria-label="Next shape"><span class="ms" aria-hidden="true">chevron_right</span></button>
+            </div>
+            <div class="sm-title">
+              <button type="button" class="sm-name" id="sm-change" title="Change shape"><span class="ms" aria-hidden="true">shapes</span><span id="sm-name">Shape</span><span class="ms" aria-hidden="true">chevron_right</span></button>
+              <button type="button" class="sm-icon" id="sm-shuffle" title="Random shape (M)" aria-label="Random shape"><span class="ms" aria-hidden="true" id="sm-shuffle-icon">casino</span></button>
+            </div>
+
+            <div class="sm-group">
+              <div class="sm-label"><span class="ms" aria-hidden="true">format_color_fill</span>Color</div>
+              <div class="sm-swatches" id="sm-fill" role="radiogroup" aria-label="Color"></div>
+            </div>
+
+            <div class="sm-group" id="sm-overlap-box">
+              <div class="sm-label"><span class="ms" aria-hidden="true">layers</span>Overlap color</div>
+              <div class="sm-swatches" id="sm-overlap" role="radiogroup" aria-label="Overlap color"></div>
+            </div>
+
+            <div class="sm-group">
+              <div class="sm-label"><span class="ms" aria-hidden="true">open_in_full</span>Size<span class="sm-val"
+                  id="sm-size-val">0%</span></div>
+              <input id="sm-size" type="range" min="5" max="400" step="1" value="50">
+            </div>
+
+            <div class="sm-group">
+              <div class="sm-label"><span class="ms" aria-hidden="true">opacity</span>Opacity<span class="sm-val"
+                  id="sm-op-val">100%</span></div>
+              <input id="sm-opacity" type="range" min="10" max="100" step="1" value="100">
+            </div>
+
+            <div class="sm-group">
+              <div class="sm-label"><span class="ms" aria-hidden="true">rotate_right</span>Rotation<span class="sm-val"
+                  id="sm-rot-val">0°</span></div>
+              <input id="sm-rot" type="range" min="0" max="359" step="1" value="0">
+            </div>
+
+            <div class="sm-group">
+              <div class="sm-label"><span class="ms" aria-hidden="true">stacks</span>Layer</div>
+              <div class="sm-grid">
+                <button type="button" class="sm-btn" data-layer="back"><span class="ms"
+                    aria-hidden="true">flip_to_back</span>To back</button>
+                <button type="button" class="sm-btn" data-layer="backward"><span class="ms"
+                    aria-hidden="true">arrow_downward</span>Backward</button>
+                <button type="button" class="sm-btn" data-layer="front"><span class="ms"
+                    aria-hidden="true">flip_to_front</span>To front</button>
+                <button type="button" class="sm-btn" data-layer="forward"><span class="ms"
+                    aria-hidden="true">arrow_upward</span>Forward</button>
+              </div>
+            </div>
+
+            <button type="button" class="sm-btn sm-delete" id="sm-delete"><span class="ms"
+                aria-hidden="true">delete</span>Delete shape</button>
+          </div>
+
+        </section>
+      </div>
+      <div class="add-bar">
+        <button type="button" class="add-btn" id="add-shape" title="Add a shape (N)"><span class="ms" aria-hidden="true">add</span><span class="add-label">Add shape</span></button>
+      </div>
+      </div>
+      <section class="view view-picker" id="picker" aria-label="Shape picker" inert>
+        <div class="picker-head">
+          <button type="button" class="icon-btn" id="picker-back" title="Back (Esc)" aria-label="Back"><span class="ms" aria-hidden="true">arrow_back</span></button>
+          <div class="picker-titles"><span id="picker-title">Add shape</span></div>
+        </div>
+        <div class="picker-grid" id="picker-grid" tabindex="-1"></div>
+      </section>
+      </div>
+      </div>
+    </aside>
+    <main id="preview-area">
+      <div id="preview">
+        <div id="stage"></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="sheet-backdrop" aria-hidden="true">
+    <div id="sheet" role="dialog" aria-label="Shapes" aria-modal="true" tabindex="-1">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-title" id="sheet-title">Shapes</div>
+      <div class="sheet-grid" id="sheet-grid"></div>
+    </div>
+  </div>
+
+  <dialog id="shortcuts" class="m3-dialog" aria-labelledby="shortcuts-title">
+    <div class="dlg-head">
+      <h2 id="shortcuts-title">Keyboard shortcuts</h2>
+      <button type="button" class="icon-btn" id="shortcuts-close" title="Close (Esc)" aria-label="Close"><span class="ms" aria-hidden="true">close</span></button>
+    </div>
+    <div class="dlg-body" tabindex="-1"><section class="dlg-group"><h3>General</h3><div class="dlg-row"><span>Show this cheat sheet</span><span class="dlg-keys"><kbd>?</kbd></span></div><div class="dlg-row"><span>Add a shape (open or close the picker)</span><span class="dlg-keys"><kbd>N</kbd></span></div><div class="dlg-row"><span>Add a random blob</span><span class="dlg-keys"><kbd>B</kbd></span></div><div class="dlg-row"><span>Undo<br><small>or Ctrl+Z</small></span><span class="dlg-keys"><kbd>Z</kbd></span></div><div class="dlg-row"><span>Redo<br><small>or Ctrl+Y</small></span><span class="dlg-keys"><kbd>Y</kbd></span></div><div class="dlg-row"><span>Export PNG 2× / 1×<br><small>Shift+E for 1×</small></span><span class="dlg-keys"><kbd>E</kbd></span></div><div class="dlg-row"><span>Minimize or expand the panel</span><span class="dlg-keys"><kbd>S</kbd></span></div><div class="dlg-row"><span>Hide or show the panel completely</span><span class="dlg-keys"><kbd>Shift</kbd><kbd>S</kbd></span></div><div class="dlg-row"><span>Light / dark theme</span><span class="dlg-keys"><kbd>Enter</kbd></span></div><div class="dlg-row"><span>Clear everything (twice)</span><span class="dlg-keys"><kbd>R</kbd></span></div></section><section class="dlg-group"><h3>Selected shape</h3><div class="dlg-row"><span>Previous / next shape</span><span class="dlg-keys"><kbd>[</kbd><kbd>]</kbd></span></div><div class="dlg-row"><span>Deselect</span><span class="dlg-keys"><kbd>Esc</kbd></span></div><div class="dlg-row"><span>Delete<br><small>or Backspace</small></span><span class="dlg-keys"><kbd>Del</kbd></span></div><div class="dlg-row"><span>Reshape blob / random shape</span><span class="dlg-keys"><kbd>M</kbd></span></div><div class="dlg-row"><span>Next color</span><span class="dlg-keys"><kbd>C</kbd></span></div><div class="dlg-row"><span>Pick a palette color</span><span class="dlg-keys"><kbd>1</kbd><kbd>–</kbd><kbd>8</kbd></span></div><div class="dlg-row"><span>Next overlap color<br><small>Shift+O for previous</small></span><span class="dlg-keys"><kbd>O</kbd></span></div><div class="dlg-row"><span>Layer forward / back<br><small>Shift for front / back</small></span><span class="dlg-keys"><kbd>↑</kbd><kbd>↓</kbd></span></div><div class="dlg-row"><span>Reset rotation</span><span class="dlg-keys"><kbd>0</kbd></span></div><div class="dlg-row"><span>Resize (on the wallpaper)</span><span class="dlg-keys"><kbd>Scroll</kbd></span></div><div class="dlg-row"><span>Rotate<br><small>add Ctrl for fine</small></span><span class="dlg-keys"><kbd>Shift</kbd><kbd>Scroll</kbd></span></div></section><section class="dlg-group"><h3>Background</h3><div class="dlg-row"><span>Next pattern<br><small>Shift+P for previous</small></span><span class="dlg-keys"><kbd>P</kbd></span></div><div class="dlg-row"><span>Pattern strength</span><span class="dlg-keys"><kbd>−</kbd><kbd>+</kbd></span></div><div class="dlg-row"><span>Pattern size</span><span class="dlg-keys"><kbd>,</kbd><kbd>.</kbd></span></div></section><section class="dlg-group"><h3>Controls</h3><div class="dlg-row"><span>Move between controls</span><span class="dlg-keys"><kbd>Tab</kbd></span></div><div class="dlg-row"><span>Choose inside a group (colors, patterns, formats…)</span><span class="dlg-keys"><kbd>←</kbd><kbd>→</kbd></span></div><div class="dlg-row"><span>Adjust a slider<br><small>double-click to reset</small></span><span class="dlg-keys"><kbd>←</kbd><kbd>→</kbd></span></div></section></div>
+  </dialog>
+
+  <div id="toast" hidden></div>
+
+  <script type="module">
+    import {
+      MaterialShapes,
+      roundedPolygonToPath
+    } from 'https://esm.sh/material-shapes-ts@0.3.0';
+
+    // Library shapes, minus the heart and star
+    const all = [...MaterialShapes.all()]
+      .filter(s => !/^(heart|star)$/i.test(String(s.name)));
+
+    const NS = 'http://www.w3.org/2000/svg';
+    const stage = document.getElementById('stage');
+
+    const idx = (name, i) => {
+      const k = all.findIndex(s => String(s.name).toLowerCase() === name);
+      return k >= 0 ? k : i;
+    };
+    const pathCache = [];
+    const dOf = i => (pathCache[i] ??= (all[i].d || roundedPolygonToPath(all[i].polygon).toSvgPathData()));
+
+    const randomBlob = () => {
+      const n = 8 + Math.floor(Math.random() * 8);
+      const jitter = (Math.PI * 2 / n) * 0.7;
+      const pts = Array.from({ length: n }, (_, i) => {
+        const a = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * jitter;
+        const r = 0.15 + Math.random() * 0.35;
+        return [0.5 + Math.cos(a) * r, 0.5 + Math.sin(a) * r];
+      });
+      const f = v => +v.toFixed(4);
+      let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+      for (let i = 0; i < n; i++) {
+        const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+        const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+        const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+        d += `C${f(c1[0])} ${f(c1[1])} ${f(c2[0])} ${f(c2[1])} ${f(p2[0])} ${f(p2[1])}`;
+      }
+      return d + 'Z';
+    };
+    const pathOf = l => l.d || dOf(l.shape);
+
+    const PALETTE = ['primary', 'secondary', 'tertiary', 'primary-container',
+      'secondary-container', 'tertiary-container', 'inverse-primary', 'black'];
+    const OVERLAP_OPTIONS = ['none', ...PALETTE];
+    const randomFill = () => PALETTE[Math.floor(Math.random() * PALETTE.length)];
+    const randomOverlap = fill => {
+      const opts = PALETTE.filter(c => c !== fill && c !== 'black');
+      return opts[Math.floor(Math.random() * opts.length)];
+    };
+
+    const PATTERNS = ['none', 'patterns/bank-note.svg', 'patterns/bubbles.svg',
+      'patterns/endless-clouds.svg',
+      'patterns/plus.svg', 'patterns/topography.svg', 'patterns/wiggle.svg'];
+
+    const migratePattern = p => {
+      if (p === 'none') return 'none';
+      if (!p) return 'patterns/topography.svg';
+      if (PATTERNS.includes(p)) return p;
+      const withFolder = 'patterns/' + p;
+      return PATTERNS.includes(withFolder) ? withFolder : 'patterns/topography.svg';
+    };
+
+    const prefs = { pattern: 'patterns/topography.svg', opacity: 0.1, hue: 0, patternScale: 1, format: '16:9' };
+    const FORMATS = [
+      { id: '16:9', w: 1920, h: 1080, hint: 'Most monitors & laptops' },
+      { id: '16:10', w: 1920, h: 1200, hint: 'MacBooks & many laptops' },
+      { id: '21:9', w: 2560, h: 1080, hint: 'Ultrawide' },
+      { id: '32:9', w: 3840, h: 1080, hint: 'Super ultrawide' },
+      { id: '3:2', w: 2160, h: 1440, hint: 'Surface & Framework laptops' },
+      { id: '4:3', w: 1920, h: 1440, hint: 'Classic 4:3 monitors' },
+      { id: '5:4', w: 1280, h: 1024, hint: 'Classic 5:4 monitors' }
+    ];
+    prefs.orientation = 'landscape';
+    prefs.custom = { w: 1920, h: 1080 };
+    let CW = 1920, CH = 1080;   // current canvas size in px
+    const tileSizes = {};
+    const tileSize = src => tileSizes[src]
+      ? Promise.resolve(tileSizes[src])
+      : new Promise(res => {
+        const im = new Image();
+        im.onload = () => res(tileSizes[src] = [im.naturalWidth || 100, im.naturalHeight || 100]);
+        im.onerror = () => res([100, 100]);
+        im.src = src;
+      });
+
+    const applyPrefs = () => {
+      stage.style.setProperty('--pattern',
+        prefs.pattern === 'none' ? 'none' : `url("${prefs.pattern}")`);
+      stage.style.setProperty('--pattern-opacity', prefs.opacity);
+      document.querySelectorAll('.pat').forEach(b => b.setAttribute('aria-checked', String(b.dataset.p === prefs.pattern)));
+      const po = document.getElementById('popacity');
+      if (po && +po.value !== Math.round(prefs.opacity * 100)) po.value = Math.round(prefs.opacity * 100);
+      if (prefs.pattern === 'none') return;
+      const src = prefs.pattern;
+      tileSize(src).then(([w, h]) => {
+        if (src !== prefs.pattern) return;
+        stage.style.setProperty('--pattern-size',
+          `${w * prefs.patternScale}px ${h * prefs.patternScale}px`);
+      });
+    };
+
+    const TOKENS = ['primary', 'primary-container', 'secondary', 'secondary-container',
+      'tertiary', 'tertiary-container', 'surface', 'on-surface', 'inverse-primary'];
+    const TERTIARY_SHIFT = 30;
+
+    const lin = c => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const gam = c => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+
+    const toOklch = (R, G, B) => {
+      const r = lin(R), g = lin(G), b = lin(B);
+      const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+      const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+      const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+      const L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+      const a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+      const k = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+      return [L, Math.hypot(a, k), (Math.atan2(k, a) * 180 / Math.PI + 360) % 360];
+    };
+
+    const fromOklch = (L, C, h) => {
+      const rgbAt = c => {
+        const a = c * Math.cos(h * Math.PI / 180), k = c * Math.sin(h * Math.PI / 180);
+        const l = (L + 0.3963377774 * a + 0.2158037573 * k) ** 3;
+        const m = (L - 0.1055613458 * a - 0.0638541728 * k) ** 3;
+        const s = (L - 0.0894841775 * a - 1.2914855480 * k) ** 3;
+        return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+      };
+      let c = C, rgb = rgbAt(c);
+      for (let i = 0; i < 40 && rgb.some(v => v < -0.0005 || v > 1.0005); i++) {
+        c *= 0.95;
+        rgb = rgbAt(c);
+      }
+      return rgb.map(v => Math.round(gam(Math.min(1, Math.max(0, v)))));
+    };
+
+    const BASE_HUE = toOklch(177, 209, 138)[2];
+
+    function applyHue() {
+      const root = document.documentElement;
+      TOKENS.forEach(n => root.style.removeProperty('--md-sys-color-' + n));
+      const cs = getComputedStyle(root);
+      const H = BASE_HUE + prefs.hue;
+      let primaryRgb;
+      for (const n of TOKENS) {
+        const v = (cs.getPropertyValue('--md-sys-color-' + n).match(/\d+/g) || []).map(Number);
+        if (v.length < 3) continue;
+        const [L, C] = toOklch(v[0], v[1], v[2]);
+        const h = (H + (n.startsWith('tertiary') ? TERTIARY_SHIFT : 0)) % 360;
+        const [r, g, b] = fromOklch(L, C, h);
+        root.style.setProperty('--md-sys-color-' + n, `rgb(${r} ${g} ${b})`);
+        if (n === 'primary') primaryRgb = [r, g, b];
+      }
+      const box = document.getElementById('hex');
+      if (box && primaryRgb) {
+        box.placeholder = '#' + primaryRgb.map(x => x.toString(16).padStart(2, '0')).join('');
+      }
+    }
+
+    const defaults = () => [
+      { shape: idx('flower', 28), size: 560, x: -120, y: -170, rot: 0, fill: 'tertiary-container', overlap: 'primary-container' },
+      { shape: idx('circle', 0), size: 1100, x: 1000, y: 380, rot: 0, fill: 'primary', overlap: 'secondary-container' },
+      { shape: idx('burst', 24), size: 620, x: 650, y: 230, rot: 18, fill: 'tertiary', overlap: 'primary-container' },
+    ];
+
+    const root = document.documentElement;
+    const layers = defaults();
+
+    const KEY = 'wallpaper-layout-v1';
+    const SAFE_D = /^[MCLZ0-9eE.,\s+-]+$/;
+    const valid = l => l &&
+      (l.d !== undefined
+        ? typeof l.d === 'string' && l.d.length < 4000 && SAFE_D.test(l.d)
+        : Number.isInteger(l.shape) && l.shape >= 0 && l.shape < all.length) &&
+      [l.size, l.x, l.y, l.rot].every(Number.isFinite) && PALETTE.includes(l.fill) &&
+      (l.overlap === undefined || OVERLAP_OPTIONS.includes(l.overlap)) &&
+      (l.opacity === undefined || (Number.isFinite(l.opacity) && l.opacity >= 0.05 && l.opacity <= 1));
+
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY));
+      if (saved && Array.isArray(saved.layers)) {
+        saved.layers.forEach(l => {
+          if (l && l.fill === 'surface') l.fill = 'primary-container';
+          if (l && l.overlap === 'surface') l.overlap = 'none';
+        });
+        layers.splice(0, layers.length, ...saved.layers.filter(valid));
+        layers.forEach(l => { l.overlap = l.overlap ?? 'primary-container'; });
+        if (saved.dark === false) root.classList.replace('dark', 'light');
+        const sp = saved.prefs || {};
+        prefs.pattern = migratePattern(sp.pattern);
+        if (Number.isFinite(sp.opacity)) prefs.opacity = Math.min(0.4, Math.max(0.02, sp.opacity));
+        if (Number.isFinite(sp.hue)) prefs.hue = ((sp.hue % 360) + 360) % 360;
+        if (Number.isFinite(sp.patternScale)) prefs.patternScale = Math.min(8, Math.max(0.5, sp.patternScale));
+        if (FORMATS.some(f => f.id === sp.format) || sp.format === 'custom') prefs.format = sp.format;
+        else if (sp.format === '9:16') { prefs.format = '16:9'; prefs.orientation = 'portrait'; }   // older saves
+        else if (sp.format === '9:20') { prefs.format = 'custom'; prefs.custom = { w: 1080, h: 2400 }; }
+        if (sp.orientation === 'portrait') prefs.orientation = 'portrait';
+        if (sp.custom && Number.isFinite(sp.custom.w) && Number.isFinite(sp.custom.h)) prefs.custom = { w: sp.custom.w, h: sp.custom.h };
+      }
+    } catch { }
+
+    // ---------- history: every change (layers or settings) can be undone and redone ----------
+    const snapshot = () => JSON.stringify({ layers, prefs });
+    const undoStack = [], redoStack = [];
+    const sigOf = () => `${layers.length}|${layers.map(l => (l.shape ?? '') + (l.d ? 'b' + l.d.length : '')).join(',')}|${prefs.pattern}|${prefs.format}|${prefs.orientation}`;
+    let lastSnap = snapshot(), lastSig = sigOf(), lastChange = 0, restoring = false;
+    const undoBtn = document.getElementById('undo-btn'), redoBtn = document.getElementById('redo-btn');
+    const histUI = () => { undoBtn.disabled = !undoStack.length; redoBtn.disabled = !redoStack.length; };
+    const track = () => {
+      if (restoring) return;
+      const cur = snapshot();
+      if (cur === lastSnap) return;
+      const now = performance.now();
+      // a burst of small edits (dragging a slider, scrolling to resize) becomes one undo step;
+      // adding, deleting, clearing, importing or switching pattern/format always starts a new one
+      const sig = sigOf();
+      if (now - lastChange > 600 || sig !== lastSig) { undoStack.push(lastSnap); if (undoStack.length > 100) undoStack.shift(); }
+      lastChange = now;
+      lastSig = sig;
+      lastSnap = cur;
+      redoStack.length = 0;
+      histUI();
+    };
+
+    let saveTimer;
+    const save = () => {
+      track();
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        try {
+          localStorage.setItem(KEY, JSON.stringify({
+            layers, prefs, dark: root.classList.contains('dark')
+          }));
+        } catch { }
+      }, 250);
+    };
+
+    const el = (tag, attrs = {}) => {
+      const n = document.createElementNS(NS, tag);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      return n;
+    };
+    const tf = l => `translate(${l.x} ${l.y}) scale(${l.size}) rotate(${l.rot} 0.5 0.5)`;
+    const color = n => `var(--md-sys-color-${n})`;
+    const norm = d => ((d % 360) + 360) % 360;
+
+    const svg = el('svg', { viewBox: '0 0 1920 1080' });
+    Object.assign(svg.style, { left: '0px', top: '0px', width: '1920px', height: '1080px', touchAction: 'none' });
+    stage.appendChild(svg);
+
+    let active = null;
+    let dragging = false;
+
+    function render() {
+      const defs = el('defs');
+      const children = [defs];
+
+      layers.forEach((l, i) => {
+        const g = el('g', { 'data-i': i });
+        if (l.opacity !== undefined) g.style.opacity = l.opacity;   // the whole shape, overlap color included
+        const d = pathOf(l);
+
+        if (!(i > 0 && l.overlap && l.overlap !== 'none')) {
+          const base = el('path', { d, transform: tf(l), 'data-i': i });
+          base.style.fill = color(l.fill);
+          g.appendChild(base);
+        } else {
+          const mask = el('mask', {
+            id: 'mask' + i, maskUnits: 'userSpaceOnUse',
+            x: -5000, y: -5000, width: 12000, height: 12000
+          });
+          const m = el('path', { d, transform: tf(l) });
+          m.style.fill = '#fff';
+          mask.appendChild(m);
+          defs.appendChild(mask);
+
+          const inner = el('g', { mask: `url(#mask${i})` });
+          inner.style.pointerEvents = 'none';
+
+          const half = l.size * 0.75;
+          const cx = l.x + l.size / 2, cy = l.y + l.size / 2;
+          const fillBox = el('rect', { x: cx - half, y: cy - half, width: half * 2, height: half * 2 });
+          fillBox.style.fill = color(l.fill);
+          inner.appendChild(fillBox);
+
+          for (let k = 0; k < i; k++) {
+            const ov = el('path', { d: pathOf(layers[k]), transform: tf(layers[k]) });
+            ov.style.fill = color(l.overlap);
+            inner.appendChild(ov);
+          }
+          g.appendChild(inner);
+
+          const hit = el('path', { d, transform: tf(l), 'data-i': i });
+          hit.style.fill = '#000';
+          hit.style.fillOpacity = '0';
+          g.appendChild(hit);
+        }
+
+        children.push(g);
+      });
+
+      if (active) {
+        const outline = el('path', {
+          d: pathOf(active),
+          transform: tf(active),
+          'vector-effect': 'non-scaling-stroke'
+        });
+        outline.style.fill = 'none';
+        outline.style.stroke = 'var(--md-sys-color-on-surface)';
+        outline.style.strokeWidth = '2.5';
+        outline.style.strokeDasharray = '6 4';
+        outline.style.pointerEvents = 'none';
+        children.push(outline);
+      }
+
+      svg.replaceChildren(...children);
+      syncMenu();   // keep the shape tab in step with shortcuts, dragging, etc.
+    }
+    const commit = () => { render(); save(); };
+
+    const layerOf = t => {
+      if (!t) return undefined;
+      const path = t.closest ? t.closest('[data-i]') : t;
+      return path && path.dataset && path.dataset.i !== undefined ? layers[+path.dataset.i] : undefined;
+    };
+
+    svg.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;   // right click is for the shape menu, not for dragging
+      if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+      const l = layerOf(e.target);
+      if (!l) {
+        active = null;
+        render();
+        return;
+      }
+      e.preventDefault();
+
+      active = l;
+      dragging = true;
+      render();
+
+      const start = { x: e.clientX, y: e.clientY, lx: l.x, ly: l.y };
+      let moved = false;
+
+      const move = ev => {
+        const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
+        if (!moved && Math.hypot(dx, dy) < 5) return;
+        moved = true;
+        l.x = start.lx + dx / scale;
+        l.y = start.ly + dy / scale;
+        render();
+      };
+
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        dragging = false;
+        commit();
+      };
+
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
+
+    svg.addEventListener('wheel', e => {
+      const l = layerOf(e.target) || active;
+      if (!l) return;
+      e.preventDefault();
+      active = l;
+      const d = e.deltaY || e.deltaX;
+
+      if (e.shiftKey) {
+        const step = (e.ctrlKey || e.metaKey) ? 0.002 : 0.01;
+        l.rot = norm(l.rot + d * step);
+      } else {
+        const cx = l.x + l.size / 2, cy = l.y + l.size / 2;
+        l.size = Math.min(3000, Math.max(80, l.size * Math.exp(-d * 0.001)));
+        l.x = cx - l.size / 2;
+        l.y = cy - l.size / 2;
+      }
+      commit();
+    }, { passive: false });
+
+    let clearArmed = false, clearTimer;
+    const clearBtn = document.getElementById('clear-all');
+    const clearLabel = document.getElementById('clear-label');
+    const disarmClear = () => {
+      clearArmed = false;
+      clearTimeout(clearTimer);
+      clearLabel.textContent = 'Clear everything';
+    };
+    const requestClear = () => {
+      if (!clearArmed) {   // first press only arms it
+        clearArmed = true;
+        clearLabel.textContent = 'Click again to confirm';
+        toast('Press again to clear everything', 2000);
+        clearTimer = setTimeout(disarmClear, 2000);
+        return;
+      }
+      disarmClear();
+      layers.length = 0;
+      active = null;
+      prefs.pattern = 'none';
+      applyPrefs();
+      commit();
+    };
+    clearBtn.addEventListener('click', () => { clearBtn.blur(); requestClear(); });
+
+    const moveLayer = (l, dir) => {
+      const i = layers.indexOf(l);
+      const j = dir === Infinity ? layers.length - 1
+        : dir === -Infinity ? 0
+          : Math.min(layers.length - 1, Math.max(0, i + dir));
+      if (j === i) return;
+      layers.splice(i, 1);
+      layers.splice(j, 0, l);
+      commit();
+    };
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const toastEl = document.getElementById('toast');
+    let toastTimer;
+    const toast = (msg, ms = 3000) => {
+      toastEl.textContent = msg;
+      toastEl.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.hidden = true; }, ms);
+    };
+
+    addEventListener('keydown', e => {
+      const inText = e.target instanceof HTMLInputElement && (e.target.type === 'text' || e.target.type === 'number');
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !inText && !sheetOpen() && !shortcutsDlg.open) {   // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl/Cmd+Y
+        const kk = e.key.toLowerCase();
+        if (kk === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+        if (kk === 'y') { e.preventDefault(); redo(); return; }
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (inText) {
+        if (e.key === 'Enter' || e.key === 'Escape') e.target.blur();
+        return;
+      }
+      if (e.target instanceof HTMLInputElement && e.target.type === 'range' && e.key.startsWith('Arrow')) return;
+      if (shortcutsDlg.open) return;
+      if (e.key === '?') { e.preventDefault(); shortcutsDlg.showModal(); return; }
+      const k = e.key.toLowerCase();
+
+      if (pickerIsOpen() && (e.key === 'Escape' || k === 'n')) { e.preventDefault(); closePicker(); return; }
+      if (sheetOpen()) {
+        if (e.key === 'Escape' || k === 'n') { e.preventDefault(); closeSheet(); }
+        return;
+      }
+
+      if (k === 'enter') {
+        if (e.target instanceof HTMLButtonElement) return;   // let Enter press the focused button
+        e.preventDefault();
+        setTheme(!root.classList.contains('dark'));
+      } else if (k === '[' || k === ']') {
+        e.preventDefault();
+        stepShape(k === '[' ? -1 : 1);
+      } else if ((k === 'arrowup' || k === 'pageup') && active) {
+        e.preventDefault();
+        moveLayer(active, e.shiftKey ? Infinity : 1);
+      } else if ((k === 'arrowdown' || k === 'pagedown') && active) {
+        e.preventDefault();
+        moveLayer(active, e.shiftKey ? -Infinity : -1);
+      } else if (k === 'escape') {
+        active = null;
+        render();
+      } else if (k === 'n') {
+        openShapes();
+      } else if ((k === 'delete' || k === 'backspace') && active) {
+        e.preventDefault();
+        layers.splice(layers.indexOf(active), 1);
+        active = null;
+        commit();
+      } else if (k === 'm' && active) {
+        shuffleShape();
+      } else if (k === 'c' && active) {
+        active.fill = PALETTE[(PALETTE.indexOf(active.fill) + 1) % PALETTE.length];
+        commit();
+      } else if (k === 'o' && active) {
+        const currentIdx = OVERLAP_OPTIONS.indexOf(active.overlap || 'none');
+        const nextIdx = (currentIdx + (e.shiftKey ? OVERLAP_OPTIONS.length - 1 : 1)) % OVERLAP_OPTIONS.length;
+        active.overlap = OVERLAP_OPTIONS[nextIdx];
+        commit();
+      } else if (k === 'r') {
+        requestClear();
+      } else if (k === 'p') {
+        const n = PATTERNS.length;
+        prefs.pattern = PATTERNS[(PATTERNS.indexOf(prefs.pattern) + (e.shiftKey ? n - 1 : 1)) % n];
+        applyPrefs();
+        save();
+      } else if (k === '=' || k === '+' || k === '-') {
+        prefs.opacity = Math.min(0.4, Math.max(0.02, prefs.opacity + (k === '-' ? -0.02 : 0.02)));
+        applyPrefs();
+        save();
+      } else if (/^[1-8]$/.test(k) && active) {
+        active.fill = PALETTE[+k - 1];
+        commit();
+      } else if (k === '0' && active) {
+        active.rot = 0;
+        commit();
+      } else if (k === ',' || k === '.' || k === '<' || k === '>') {
+        setPatternScale(prefs.patternScale * (k === '.' || k === '>' ? 1.15 : 1 / 1.15));
+      } else if (k === 'z') {
+        undo();
+      } else if (k === 'y') {
+        redo();
+      } else if (k === 'b') {
+        addBlob();
+      } else if (k === 's') {
+        if (e.shiftKey || tune.hidden) {   // Shift+S hides the panel completely; S or Shift+S brings it back
+          tune.hidden = !tune.hidden;
+          if (tune.hidden) { closePicker(); toast('Panel hidden. Press Shift+S to bring it back.', 2500); }
+        } else {
+          document.getElementById('collapse').click();
+        }
+      } else if (k === 'e') {
+        e.preventDefault();
+        exportPng(e.shiftKey ? 1 : 2);
+      }
+    });
+
+    const loadImg = src => new Promise(res => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => res(null);
+      im.src = src;
+    });
+
+    async function draw(scale, withPattern) {
+      const W = CW * scale, H = CH * scale;
+      const cv = document.createElement('canvas');
+      cv.width = W;
+      cv.height = H;
+      const ctx = cv.getContext('2d');
+      const cs = getComputedStyle(root);
+      const col = n => cs.getPropertyValue('--md-sys-color-' + n).trim();
+
+      ctx.fillStyle = col('surface');
+      ctx.fillRect(0, 0, W, H);
+
+      if (withPattern && prefs.pattern !== 'none') {
+        const im = await loadImg(prefs.pattern);
+        if (im) {
+          const tw = Math.max(1, Math.round((im.naturalWidth || 100) * scale * prefs.patternScale));
+          const th = Math.max(1, Math.round((im.naturalHeight || 100) * scale * prefs.patternScale));
+          const tile = document.createElement('canvas');
+          tile.width = tw;
+          tile.height = th;
+          const t = tile.getContext('2d');
+          t.drawImage(im, 0, 0, tw, th);
+          t.globalCompositeOperation = 'source-in';
+
+          t.fillStyle = col('primary');
+          t.fillRect(0, 0, tw, th);
+
+          ctx.save();
+          ctx.globalAlpha = prefs.opacity;
+          ctx.fillStyle = ctx.createPattern(tile, 'repeat');
+          ctx.fillRect(0, 0, W, H);
+          ctx.restore();
+        }
+      }
+
+      const place = (c, l) => {
+        c.setTransform(scale, 0, 0, scale, 0, 0);
+        c.translate(l.x, l.y);
+        c.scale(l.size, l.size);
+        c.translate(0.5, 0.5);
+        c.rotate(l.rot * Math.PI / 180);
+        c.translate(-0.5, -0.5);
+      };
+      const paths = layers.map(l => new Path2D(pathOf(l)));
+
+      let scratch = null;
+      layers.forEach((l, i) => {
+        if (!(i > 0 && l.overlap && l.overlap !== 'none')) {
+          place(ctx, l);
+          ctx.fillStyle = col(l.fill);
+          ctx.globalAlpha = l.opacity ?? 1;
+          ctx.fill(paths[i]);
+          ctx.globalAlpha = 1;
+          return;
+        }
+        if (!scratch) {
+          scratch = document.createElement('canvas');
+          scratch.width = W;
+          scratch.height = H;
+        }
+        const lc = scratch.getContext('2d');
+        lc.setTransform(1, 0, 0, 1, 0, 0);
+        lc.globalCompositeOperation = 'source-over';
+        lc.clearRect(0, 0, W, H);
+
+        place(lc, l);
+        lc.fillStyle = col(l.fill);
+        lc.fill(paths[i]);
+
+        lc.globalCompositeOperation = 'source-atop';
+        lc.fillStyle = col(l.overlap);
+        for (let k = 0; k < i; k++) {
+          place(lc, layers[k]);
+          lc.fill(paths[k]);
+        }
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = l.opacity ?? 1;
+        ctx.drawImage(scratch, 0, 0);
+        ctx.globalAlpha = 1;
+      });
+      return cv;
+    }
+
+    const toBlob = cv => new Promise((res, rej) => {
+      try { cv.toBlob(b => (b ? res(b) : rej(new Error('empty'))), 'image/png'); }
+      catch (err) { rej(err); }
+    });
+
+    async function exportPng(scale) {
+      try {
+        let withPattern = true, blob;
+        try {
+          blob = await toBlob(await draw(scale, true));
+        } catch {
+          withPattern = false;
+          blob = await toBlob(await draw(scale, false));
+        }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `wallpaper-${CW * scale}x${CH * scale}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+        if (!withPattern && prefs.pattern !== 'none') toast(`Saved ${a.download} without the pattern (browser local security restriction).`, 5000);
+      } catch (err) {
+        console.error(err);
+        toast('Export failed, see console for details.', 6000);
+      }
+    }
+
+    // JSON layout: x/y are the shape's centre as a fraction of the canvas, size is a fraction of the shorter side
+    const camel = str => str.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+    const rd = (v, n = 3) => +v.toFixed(n);
+    function exportJson() {
+      const m = Math.min(CW, CH);
+      const rows = layers.map((l, i) => {
+        const o = {};
+        if (l.d) { o.shape = 'blob'; o.path = l.d; }   // custom blobs have no library name, so keep their outline
+        else { const n = String(all[l.shape].name); o.shape = n[0].toLowerCase() + n.slice(1); }
+        o.x = rd((l.x + l.size / 2) / CW);
+        o.y = rd((l.y + l.size / 2) / CH);
+        o.size = rd(l.size / m);
+        const rot = norm(l.rot);
+        o.rotation = rd(rot > 180 ? rot - 360 : rot, 1);
+        o.fill = camel(l.fill);
+        if (i > 0 && l.overlap && l.overlap !== 'none') o.overlap = camel(l.overlap);
+        if (l.opacity !== undefined) o.opacity = rd(l.opacity, 2);
+        return '    ' + JSON.stringify(o);
+      });
+      const pattern = prefs.pattern === 'none' ? 'none' : prefs.pattern.replace(/^.*\//, '').replace(/\.svg$/, '');
+      const text = `{\n  "layers": ${rows.length ? `[\n${rows.join(',\n')}\n  ]` : '[]'},\n  "pattern": ${JSON.stringify(pattern)},\n  "strength": ${rd(prefs.opacity, 2)}\n}\n`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      a.download = 'wallpaper.json';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+    document.getElementById('export-png').addEventListener('click', e => { e.currentTarget.blur(); exportPng(2); });
+    document.getElementById('export-png1').addEventListener('click', e => { e.currentTarget.blur(); exportPng(1); });
+    document.getElementById('export-json').addEventListener('click', e => { e.currentTarget.blur(); exportJson(); });
+
+    // export menu
+    const expBtn = document.getElementById('export-btn');
+    const expMenu = document.getElementById('export-menu');
+    const setExpMenu = open => {
+      if (open) {
+        document.getElementById('exp-2x').textContent = `${CW * 2} × ${CH * 2}`;
+        document.getElementById('exp-1x').textContent = `${CW} × ${CH}`;
+      }
+      expMenu.hidden = !open;
+      expBtn.setAttribute('aria-expanded', String(open));
+    };
+    expBtn.addEventListener('click', e => { e.currentTarget.blur(); setExpMenu(expMenu.hidden); });
+    expMenu.addEventListener('click', () => setExpMenu(false));
+    addEventListener('pointerdown', e => { if (!expMenu.hidden && !e.target.closest('.menu-wrap')) setExpMenu(false); });
+    addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !expMenu.hidden) { e.stopImmediatePropagation(); setExpMenu(false); expBtn.focus(); }
+    }, true);
+
+    // import: the reverse of exportJson (x/y are centre fractions of the canvas, size a fraction of the shorter side)
+    const lowerFirst = t => t[0].toLowerCase() + t.slice(1);
+    const importLayout = text => {
+      let data;
+      try { data = JSON.parse(text); } catch { toast('That file is not valid JSON.', 4000); return; }
+      if (!data || !Array.isArray(data.layers)) { toast('No layout found in that file.', 4000); return; }
+      const m = Math.min(CW, CH);
+      const out = [];
+      for (const r of data.layers) {
+        if (!r || typeof r !== 'object') continue;
+        const size = r.size * m;
+        const l = { size, x: r.x * CW - size / 2, y: r.y * CH - size / 2, rot: norm(Number(r.rotation) || 0) };
+        if (r.shape === 'blob') l.d = r.path;
+        else l.shape = all.findIndex(sh => lowerFirst(String(sh.name)) === r.shape);
+        l.fill = PALETTE.find(c => camel(c) === r.fill);
+        l.overlap = OVERLAP_OPTIONS.find(c => camel(c) === r.overlap) ?? 'none';
+        if (r.opacity !== undefined) l.opacity = r.opacity;
+        if (valid(l)) out.push(l);
+      }
+      const skipped = data.layers.length - out.length;
+      if (!out.length && data.layers.length) { toast('None of the shapes in that file could be read.', 4000); return; }
+      layers.splice(0, layers.length, ...out);
+      active = null;
+      if (typeof data.pattern === 'string') {
+        const found = PATTERNS.find(pt => pt.replace(/^.*\//, '').replace(/\.svg$/, '') === data.pattern);
+        if (found) prefs.pattern = found;
+      }
+      if (Number.isFinite(data.strength)) prefs.opacity = Math.min(0.4, Math.max(0.02, data.strength));
+      applyPrefs();
+      commit();
+      if (skipped) toast(`${skipped} shape${skipped === 1 ? '' : 's'} in that file couldn't be read.`, 3000);
+    };
+    const importFile = async f => {
+      if (!f) return;
+      if (f.size > 1e6) { toast('That file is too large.', 3000); return; }
+      importLayout(await f.text());
+    };
+    const importInput = document.getElementById('import-file');
+    document.getElementById('import-json').addEventListener('click', e => { e.currentTarget.blur(); importInput.click(); });
+    importInput.addEventListener('change', () => { importFile(importInput.files[0]); importInput.value = ''; });
+    addEventListener('dragover', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+    addEventListener('drop', e => {
+      const f = [...(e.dataTransfer?.files || [])].find(x => /\.json$/i.test(x.name));
+      if (!f) return;
+      e.preventDefault();
+      importFile(f);
+    });
+
+    const addLayer = (spec, label) => {
+      const k = Math.min(CW, CH) / 1080;
+      const size = Math.round(rnd(320, 700) * k);
+      const l = {
+        ...spec,
+        size,
+        x: Math.round(CW / 2 - size / 2 + rnd(-CW / 6, CW / 6)),
+        y: Math.round(CH / 2 - size / 2 + rnd(-CH / 5.4, CH / 5.4)),
+        rot: spec.d ? Math.round(rnd(0, 360)) : 0,
+        fill: randomFill()
+      };
+      l.overlap = randomOverlap(l.fill);
+      layers.push(l);
+      active = l;
+      commit();
+    };
+    const addBlob = () => addLayer({ d: randomBlob() }, 'a blob');
+
+    // ---------- undo / redo ----------
+    const applyState = str => {
+      const d = JSON.parse(str);
+      restoring = true;
+      try {
+        layers.splice(0, layers.length, ...d.layers.filter(valid));
+        Object.assign(prefs, d.prefs);
+        active = null;
+        applyFormat();
+        applyPrefs();
+        applyHue();
+        syncHue();
+        pscaleEl.value = prefs.patternScale;
+        commit();
+      } finally { restoring = false; }
+      lastSnap = snapshot();
+      lastSig = sigOf();
+      lastChange = 0;
+      histUI();
+    };
+    const undo = () => {
+      if (!undoStack.length) return;
+      redoStack.push(snapshot());
+      applyState(undoStack.pop());
+    };
+    const redo = () => {
+      if (!redoStack.length) return;
+      undoStack.push(snapshot());
+      applyState(redoStack.pop());
+    };
+    undoBtn.addEventListener('click', e => { e.currentTarget.blur(); undo(); });
+    redoBtn.addEventListener('click', e => { e.currentTarget.blur(); redo(); });
+
+    // minimize / expand the settings panel
+    const collapseBtn = document.getElementById('collapse');
+    collapseBtn.addEventListener('click', e => {
+      e.currentTarget.blur();
+      const mini = document.getElementById('tune').classList.toggle('mini');
+      setExpMenu(false);
+      if (mini) closePicker();
+      collapseBtn.setAttribute('aria-expanded', String(!mini));
+      collapseBtn.title = collapseBtn.ariaLabel = mini ? 'Expand panel (S)' : 'Minimize panel (S)';
+      collapseBtn.firstElementChild.textContent = mini ? 'menu' : 'menu_open';
+    });
+
+    // ---------- shape sheet (N): a bottom sheet with every shape ----------
+    const sheetBackdrop = document.getElementById('sheet-backdrop');
+    const sheet = document.getElementById('sheet');
+    const sheetGrid = document.getElementById('sheet-grid');
+    const prettyName = n => String(n).replace(/([a-z])([A-Z0-9])/g, '$1 $2');
+    let sheetRefresh = null, pickerRefresh = null;
+
+    let sheetReplace = false;   // true while the sheet is picking a new shape for the selected layer
+    const replaceShape = (spec, name) => {
+      if (!active) return;
+      delete active.shape;
+      delete active.d;
+      Object.assign(active, spec);
+      commit();
+    };
+    const pick = (spec, name) => (sheetReplace && active ? replaceShape(spec, name) : addLayer(spec, name));
+
+    const sheetOpen = () => sheetBackdrop.classList.contains('active');
+
+    // one shape grid, built for either the modal sheet or the in-panel picker; returns a "refresh" (new random blob, scroll to top)
+    const buildGrid = (container, panel) => {
+      const refreshers = [];
+      const card = (d, name, onPick) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'shape-card';
+        b.setAttribute('aria-label', name);
+        const sv = el('svg', { viewBox: '0 0 1 1', 'aria-hidden': 'true' });
+        const path = el('path', { d });
+        sv.appendChild(path);
+        b.append(sv);
+        b.addEventListener('click', e => {
+          onPick();
+          if (!panel && (!e.shiftKey || sheetReplace)) closeSheet();   // the in-panel picker stays open
+        });
+        return { b, path };
+      };
+      {   // first tile: a random blob that renews itself after every pick
+        let blob = randomBlob();
+        const blobCard = card(blob, 'Random blob', () => {
+          pick({ d: blob }, 'a blob');
+          markCurrent();
+          blob = randomBlob();
+          blobCard.path.setAttribute('d', blob);
+        });
+        container.appendChild(blobCard.b);
+        refreshers.push(() => { blob = randomBlob(); blobCard.path.setAttribute('d', blob); });
+      }
+      all.forEach((sh, i) => {
+        const name = sh.name ? prettyName(sh.name) : 'Shape';
+        const c = card(dOf(i), name, () => { pick({ shape: i }, name); markCurrent(); });
+        c.b.dataset.shape = i;
+        container.appendChild(c.b);
+      });
+      return () => { refreshers.forEach(f => f()); container.scrollTop = 0; };
+    };
+
+    const openSheet = (replace = false) => {
+      sheetReplace = replace && !!active;
+      document.getElementById('sheet-title').textContent = sheetReplace ? 'Change shape' : 'Shapes';
+      if (!sheetRefresh) sheetRefresh = buildGrid(sheetGrid, false); else sheetRefresh();
+      sheetBackdrop.classList.add('active');
+      sheetBackdrop.setAttribute('aria-hidden', 'false');
+      sheet.inert = false;
+      sheet.focus({ preventScroll: true });
+    };
+
+    const closeSheet = () => {
+      sheetBackdrop.classList.remove('active');
+      sheetBackdrop.setAttribute('aria-hidden', 'true');
+      sheet.inert = true;
+    };
+
+    // in-panel picker: replaces the settings while open, so the wallpaper stays visible and live
+    const tuneEl = document.getElementById('tune');
+    const picker = document.getElementById('picker');
+    const pickerGrid = document.getElementById('picker-grid');
+    const viewMain = document.getElementById('view-main');
+    const pickerIsOpen = () => tuneEl.classList.contains('picking');
+    let pickerTrigger = null;
+    // mark the current shape in the grid while changing a shape
+    const markCurrent = () => {
+      const cur = pickerIsOpen() && sheetReplace && active && active.shape !== undefined ? active.shape : null;
+      pickerGrid.querySelectorAll('.shape-card[data-shape]').forEach(c =>
+        c.classList.toggle('current', cur !== null && +c.dataset.shape === cur));
+    };
+    const closePicker = () => {
+      if (!pickerIsOpen()) return;
+      tuneEl.classList.remove('picking');
+      picker.inert = true;
+      viewMain.inert = false;
+      if (pickerTrigger && pickerTrigger.isConnected) pickerTrigger.focus({ preventScroll: true });
+      pickerTrigger = null;
+    };
+    const openPicker = (replace = false, trigger = null) => {
+      if (tuneEl.classList.contains('mini')) document.getElementById('collapse').click();
+      sheetReplace = replace && !!active;
+      document.getElementById('picker-title').textContent = sheetReplace ? 'Change shape' : 'Add shape';
+      if (!pickerRefresh) pickerRefresh = buildGrid(pickerGrid, true); else pickerRefresh();
+      pickerGrid.scrollTop = 0;
+      pickerTrigger = trigger;
+      viewMain.inert = true;
+      picker.inert = false;
+      tuneEl.classList.add('picking');
+      markCurrent();
+      document.getElementById('picker-back').focus({ preventScroll: true });
+    };
+    document.getElementById('picker-back').addEventListener('click', closePicker);
+    const openShapes = (replace, trigger) => (tuneEl.hidden ? openSheet(replace) : openPicker(replace, trigger));   // hidden panel: fall back to the sheet
+
+    sheet.inert = true;
+    sheetBackdrop.addEventListener('click', e => {
+      if (e.target === sheetBackdrop) closeSheet();
+    });
+    document.getElementById('add-shape').addEventListener('click', e => {
+      if (pickerIsOpen()) closePicker(); else openShapes(false, e.currentTarget);
+    });
+
+    document.getElementById('sm-change').addEventListener('click', e => {
+      openShapes(true, e.currentTarget);
+    });
+
+    // ---------- radio groups: one tab stop, arrow keys move and select (like native radio buttons) ----------
+    const wireRadioGroup = g => {
+      const items = () => [...g.querySelectorAll('[role="radio"]')];
+      const sync = () => {
+        const list = items();
+        const cur = list.find(x => x.getAttribute('aria-checked') === 'true') || list[0];
+        list.forEach(x => { x.tabIndex = x === cur ? 0 : -1; });
+      };
+      g.addEventListener('keydown', e => {
+        const list = items();
+        const i = list.indexOf(e.target.closest('[role="radio"]'));
+        if (i < 0) return;
+        const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+        let n;
+        if (dir) n = (i + dir + list.length) % list.length;
+        else if (e.key === 'Home') n = 0;
+        else if (e.key === 'End') n = list.length - 1;
+        else return;
+        e.preventDefault();
+        e.stopPropagation();   // the global shortcuts use the arrow keys too
+        list[n].focus();
+        list[n].click();
+      });
+      new MutationObserver(sync).observe(g, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-checked'] });
+      sync();
+    };
+    document.querySelectorAll('[role="radiogroup"]').forEach(wireRadioGroup);
+
+    // ---------- previous / next shape, random shape ----------
+    const stepShape = d => {
+      if (!layers.length) return;
+      if (!active) active = d < 0 ? layers[layers.length - 1] : layers[0];
+      else active = layers[(layers.indexOf(active) + d + layers.length) % layers.length];
+      render();
+      save();
+    };
+    document.getElementById('sm-prev').addEventListener('click', () => stepShape(-1));
+    document.getElementById('sm-next').addEventListener('click', () => stepShape(1));
+    const shuffleShape = () => {
+      if (!active) return;
+      if (active.d) { replaceShape({ d: randomBlob() }); return; }   // blob: new random blob
+      let i;
+      do { i = Math.floor(Math.random() * all.length); } while (all.length > 1 && i === active.shape);
+      replaceShape({ shape: i });
+    };
+    document.getElementById('sm-shuffle').addEventListener('click', shuffleShape);
+
+    // ---------- keyboard shortcuts cheat sheet ----------
+    const shortcutsDlg = document.getElementById('shortcuts');
+    document.getElementById('help-btn').addEventListener('click', e => { e.currentTarget.blur(); shortcutsDlg.showModal(); });
+    document.getElementById('shortcuts-close').addEventListener('click', () => shortcutsDlg.close());
+    shortcutsDlg.addEventListener('click', e => { if (e.target === shortcutsDlg) shortcutsDlg.close(); });
+
+    // ---------- right-click menu for a shape ----------
+    const menu = document.getElementById('shape-menu');
+    const smFill = document.getElementById('sm-fill');
+    const smOverlap = document.getElementById('sm-overlap');
+    const smOverlapBox = document.getElementById('sm-overlap-box');
+    const smOpacity = document.getElementById('sm-opacity');
+    const smRot = document.getElementById('sm-rot');
+    const menuOpen = () => !menu.hidden;
+
+    const swatch = (name, onPick) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sm-swatch';
+      b.dataset.c = name;
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-label', name.replace('-', ' '));
+      b.style.setProperty('--sw', color(name));
+      b.addEventListener('click', () => onPick(name));
+      return b;
+    };
+    PALETTE.forEach(c => smFill.appendChild(swatch(c, v => { if (active) { active.fill = v; commit(); } })));
+
+    const noneBtn = document.createElement('button');
+    noneBtn.type = 'button';
+    noneBtn.className = 'sm-none';
+    noneBtn.dataset.c = 'none';
+    noneBtn.setAttribute('role', 'radio');
+    noneBtn.title = 'No overlap color';
+    noneBtn.setAttribute('aria-label', 'No overlap color');
+    noneBtn.innerHTML = '<span class="ms" aria-hidden="true">block</span>';
+    noneBtn.addEventListener('click', () => { if (active) { active.overlap = 'none'; commit(); } });
+    smOverlap.appendChild(noneBtn);
+    PALETTE.forEach(c => smOverlap.appendChild(swatch(c, v => { if (active) { active.overlap = v; commit(); } })));
+
+    const tabs = [...document.querySelectorAll('.tab')];
+    const tabIndicator = document.querySelector('.tab-indicator');
+    const moveIndicator = () => {
+      const t = tabs.find(x => x.getAttribute('aria-selected') === 'true');
+      if (!t) return;
+      tabIndicator.style.left = (t.offsetLeft + (t.offsetWidth - 32) / 2) + 'px';
+      tabIndicator.style.width = '32px';
+    };
+    new ResizeObserver(moveIndicator).observe(document.querySelector('.tabs'));
+    const syncAdd = () => { };
+    const setTab = name => {
+      tabs.forEach(t => { const on = t.dataset.tab === name; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; });
+      moveIndicator();
+      document.getElementById('tab-global').hidden = name !== 'global';
+      document.getElementById('tab-shape').hidden = name !== 'shape';
+      syncAdd();
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => setTab(t.dataset.tab));
+      t.addEventListener('keydown', e => {
+        const n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (n === undefined) return;
+        e.preventDefault();
+        const next = tabs[(n + tabs.length) % tabs.length];
+        setTab(next.dataset.tab);
+        next.focus();
+      });
+    });
+    const shapeEmpty = document.getElementById('shape-empty');
+    let shownFor = null;
+
+    const syncMenu = () => {
+      markCurrent();
+      menu.hidden = !active;
+      shapeEmpty.hidden = !!active;
+      const tabShape = document.getElementById('tab-shape');
+      if (active) tabShape.removeAttribute('tabindex'); else tabShape.tabIndex = 0;   // a tab stop only while it has nothing focusable inside
+      syncAdd();
+      if (active !== shownFor) { shownFor = active; if (active) setTab('shape'); }   // picking a shape jumps to its tab
+      if (!active) return;
+      const i = layers.indexOf(active);
+      document.getElementById('sm-name').textContent = active.d ? 'Blob' : prettyName(all[active.shape].name);
+      document.getElementById('sm-layer').textContent = `Shape ${i + 1} of ${layers.length}`;
+      document.getElementById('sm-prev').disabled = document.getElementById('sm-next').disabled = layers.length < 2;
+      const shuffle = document.getElementById('sm-shuffle');
+      shuffle.title = (active.d ? 'Reshape blob' : 'Random shape') + ' (M)';
+      shuffle.setAttribute('aria-label', shuffle.title);
+      document.getElementById('sm-shuffle-icon').textContent = active.d ? 'autorenew' : 'casino';
+
+      smFill.querySelectorAll('[data-c]').forEach(b =>
+        b.setAttribute('aria-checked', String(b.dataset.c === active.fill)));
+      const ov = active.overlap || 'none';
+      smOverlap.querySelectorAll('[data-c]').forEach(b =>
+        b.setAttribute('aria-checked', String(b.dataset.c === ov)));
+      smOverlapBox.hidden = i === 0;   // the bottom layer has nothing under it to overlap
+
+      const op = Math.round((active.opacity ?? 1) * 100);
+      if (+smOpacity.value !== op) smOpacity.value = op;
+      document.getElementById('sm-op-val').textContent = op + '%';
+      const rot = Math.round(norm(active.rot)) % 360;
+      if (+smRot.value !== rot) smRot.value = rot;
+      document.getElementById('sm-rot-val').textContent = rot + '°';
+      const sz = Math.round(active.size / Math.min(CW, CH) * 100);
+      if (+smSize.value !== sz) smSize.value = sz;
+      document.getElementById('sm-size-val').textContent = sz + '%';
+    };
+
+    const openMenu = () => setTab('shape');
+
+    smOpacity.addEventListener('input', () => {
+      if (!active) return;
+      const v = +smOpacity.value / 100;
+      active.opacity = v >= 1 ? undefined : v;
+      commit();
+    });
+    smRot.addEventListener('input', () => {
+      if (!active) return;
+      active.rot = +smRot.value;
+      commit();
+    });
+    const smSize = document.getElementById('sm-size');
+    smSize.addEventListener('input', () => {   // grows and shrinks around the shape's centre
+      if (!active) return;
+      const cx = active.x + active.size / 2, cy = active.y + active.size / 2;
+      active.size = (+smSize.value / 100) * Math.min(CW, CH);
+      active.x = cx - active.size / 2;
+      active.y = cy - active.size / 2;
+      commit();
+    });
+    smSize.addEventListener('pointerup', () => smSize.blur());
+
+    for (const r of [smOpacity, smRot]) {
+      r.addEventListener('dblclick', () => {   // double-click a slider to put it back
+        if (!active) return;
+        if (r === smOpacity) active.opacity = undefined; else active.rot = 0;
+        commit();
+      });
+      r.addEventListener('pointerup', () => r.blur());
+    }
+
+    menu.querySelectorAll('[data-layer]').forEach(b => b.addEventListener('click', () => {
+      if (!active) return;
+      const dir = { front: Infinity, forward: 1, backward: -1, back: -Infinity }[b.dataset.layer];
+      moveLayer(active, dir);
+    }));
+    document.getElementById('sm-delete').addEventListener('click', () => {
+      if (!active) return;
+      layers.splice(layers.indexOf(active), 1);
+      active = null;
+      commit();
+    });
+
+    svg.addEventListener('contextmenu', e => {
+      const l = layerOf(e.target);
+      if (!l) return;   // empty canvas: leave the browser's own menu alone
+      e.preventDefault();
+      active = l;
+      render();
+      openMenu();
+    });
+
+    const tune = document.getElementById('tune');
+    const hueEl = document.getElementById('hue');
+
+    const buildHueGradient = () => {
+      const inline = root.style.getPropertyValue('--md-sys-color-primary');
+      root.style.removeProperty('--md-sys-color-primary');
+      const v = (getComputedStyle(root).getPropertyValue('--md-sys-color-primary')
+        .match(/\d+/g) || []).map(Number);
+      if (inline) root.style.setProperty('--md-sys-color-primary', inline);
+      if (v.length < 3) return;
+
+      const [L, C] = toOklch(v[0], v[1], v[2]);
+      const stops = [];
+      for (let i = 0; i <= 36; i++) {
+        const h = i * 10;
+        const [r, g, b] = fromOklch(L, C, h);
+        stops.push(`rgb(${r} ${g} ${b}) ${(h / 3.6).toFixed(2)}%`);
+      }
+      hueEl.style.setProperty('--track', `linear-gradient(90deg, ${stops.join(', ')})`);
+    };
+
+    const syncHue = () => {
+      hueEl.value = norm(BASE_HUE + prefs.hue).toFixed(1);
+    };
+
+    // ---------- light / dark ----------
+    const themeEl = document.getElementById('theme');
+    const syncTheme = () => {
+      const dark = root.classList.contains('dark');
+      themeEl.querySelectorAll('button').forEach(b =>
+        b.setAttribute('aria-checked', String(b.dataset.theme === (dark ? 'dark' : 'light'))));
+    };
+    const setTheme = dark => {
+      root.classList.toggle('dark', dark);
+      root.classList.toggle('light', !dark);
+      applyHue();
+      buildHueGradient();
+      syncTheme();
+      save();
+    };
+    themeEl.querySelectorAll('button').forEach(b =>
+      b.addEventListener('click', () => setTheme(b.dataset.theme === 'dark')));
+
+    hueEl.addEventListener('input', () => {
+      prefs.hue = ((+hueEl.value - BASE_HUE) % 360 + 360) % 360;
+      applyHue();
+      save();
+    });
+    hueEl.addEventListener('dblclick', () => {
+      prefs.hue = 0;
+      syncHue();
+      applyHue();
+      save();
+    });
+
+    const hexEl = document.getElementById('hex');
+    const hexToRgb = t => {
+      const m = t.trim().replace(/^#/, '').match(/^([0-9a-f]{3}|[0-9a-f]{6})$/i);
+      if (!m) return null;
+      let h = m[1];
+      if (h.length === 3) h = [...h].map(c => c + c).join('');
+      return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+    };
+    const applyHex = () => {
+      const rgb = hexToRgb(hexEl.value);
+      if (!rgb) {
+        if (hexEl.value.trim()) toast('Use a hex like #4c662b', 2000);
+        return;
+      }
+      const [, C, h] = toOklch(...rgb);
+      if (C < 0.01) { toast('That color is gray, so it has no hue.', 2000); return; }
+      prefs.hue = norm(h - BASE_HUE);
+      syncHue();
+      applyHue();
+      save();
+    };
+    hexEl.addEventListener('input', () => {
+      if (/^#?[0-9a-f]{6}$/i.test(hexEl.value.trim())) applyHex();
+    });
+    hexEl.addEventListener('change', applyHex);
+    hueEl.addEventListener('input', () => { hexEl.value = ''; });
+    hueEl.addEventListener('dblclick', () => { hexEl.value = ''; });
+
+    const pscaleEl = document.getElementById('pscale');
+    const setPatternScale = v => {
+      prefs.patternScale = Math.min(8, Math.max(0.5, +v.toFixed(2)));
+      pscaleEl.value = prefs.patternScale;
+      applyPrefs();
+      save();
+    };
+    pscaleEl.value = prefs.patternScale;
+    pscaleEl.addEventListener('input', () => {
+      prefs.patternScale = +pscaleEl.value;
+      applyPrefs();
+      save();
+    });
+    pscaleEl.addEventListener('dblclick', () => setPatternScale(1));
+
+    for (const el of [hueEl, pscaleEl]) el.addEventListener('pointerup', () => el.blur());
+
+    document.fonts.load('24px "Material Symbols Rounded"', 'add')
+      .then(f => { if (f.length) root.classList.add('icons'); })
+      .catch(() => { });
+
+    let scale = 1;
+    const fit = () => {
+      const s = scale = Math.max(preview.clientWidth / CW, preview.clientHeight / CH) || 1;
+      stage.style.transform = `translate(-50%, -50%) scale(${s})`;
+    };
+    const preview = document.getElementById('preview');
+    new ResizeObserver(fit).observe(preview);
+
+    // ---------- wallpaper format ----------
+    const MIN_PX = 320, MAX_PX = 7680;
+    const fmtGrid = document.getElementById('fmt-grid');
+    const orientEl = document.getElementById('orient');
+    const customEl = document.getElementById('custom-size');
+    const cwEl = document.getElementById('custom-w');
+    const chEl = document.getElementById('custom-h');
+    const chipBoxes = [];
+
+    const makeChip = (id, label, ar, title) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'fmt';
+      b.dataset.f = id;
+      b.setAttribute('role', 'radio');
+      b.title = title;
+      const box = document.createElement('i');
+      if (ar) chipBoxes.push({ box, ar });
+      else { box.className = 'dashed'; box.style.width = '28px'; box.style.height = '20px'; }
+      b.append(box, label);
+      fmtGrid.appendChild(b);
+      return b;
+    };
+
+    // change the format, then carry the layout over: keep each shape's relative position and visual weight
+    const changeFormat = mutate => {
+      const [ow, oh] = [CW, CH];
+      mutate();
+      applyFormat();
+      if (ow === CW && oh === CH) return;
+      const k = Math.sqrt((CW * CH) / (ow * oh));
+      for (const l of layers) {
+        const cx = (l.x + l.size / 2) * CW / ow, cy = (l.y + l.size / 2) * CH / oh;
+        l.size = Math.round(l.size * k);
+        l.x = Math.round(cx - l.size / 2);
+        l.y = Math.round(cy - l.size / 2);
+      }
+      commit();
+    };
+
+    FORMATS.forEach(f => makeChip(f.id, f.id, f.w / f.h, `${f.hint} · ${f.w} × ${f.h}`)
+      .addEventListener('click', () => changeFormat(() => { prefs.format = f.id; })));
+    makeChip('custom', 'Custom', 0, 'Enter your own size')
+      .addEventListener('click', () => changeFormat(() => {
+        if (prefs.format !== 'custom') prefs.custom = { w: CW, h: CH };
+        prefs.format = 'custom';
+      }));
+
+    orientEl.querySelectorAll('button').forEach(b =>
+      b.addEventListener('click', () => changeFormat(() => { prefs.orientation = b.dataset.o; })));
+
+    for (const inp of [cwEl, chEl]) {
+      inp.addEventListener('change', () => changeFormat(() => {
+        const clamp = v => Math.round(Math.min(MAX_PX, Math.max(MIN_PX, +v || MIN_PX)));
+        prefs.custom = { w: clamp(cwEl.value), h: clamp(chEl.value) };
+      }));
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+    }
+
+    function applyFormat() {
+      const portrait = prefs.orientation === 'portrait';
+      const f = FORMATS.find(x => x.id === prefs.format);
+      if (f) { CW = portrait ? f.h : f.w; CH = portrait ? f.w : f.h; }
+      else {
+        prefs.format = 'custom';
+        CW = Math.round(Math.min(MAX_PX, Math.max(MIN_PX, prefs.custom.w)));
+        CH = Math.round(Math.min(MAX_PX, Math.max(MIN_PX, prefs.custom.h)));
+        prefs.custom = { w: CW, h: CH };
+      }
+      stage.style.setProperty('--cw', CW + 'px');
+      stage.style.setProperty('--ch', CH + 'px');
+      svg.setAttribute('viewBox', `0 0 ${CW} ${CH}`);
+      svg.style.width = CW + 'px';
+      svg.style.height = CH + 'px';
+      preview.style.setProperty('--ar', CW / CH);
+      fmtGrid.querySelectorAll('.fmt').forEach(b => b.setAttribute('aria-checked', String(b.dataset.f === prefs.format)));
+      for (const { box, ar } of chipBoxes) {   // icons turn with the orientation
+        const r = portrait ? 1 / ar : ar;
+        box.style.width = (r >= 1 ? 28 : 20 * r) + 'px';
+        box.style.height = (r >= 1 ? 28 / r : 20) + 'px';
+      }
+      orientEl.hidden = !f;   // a custom size is already exactly what you typed
+      customEl.hidden = !!f;
+      orientEl.querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.o === prefs.orientation)));
+      if (!f) { cwEl.value = CW; chEl.value = CH; }
+      document.getElementById('fmt-res').textContent = (f ? f.hint + ' · ' : '') + `${CW} × ${CH} px`;
+      fit();
+    }
+
+    // ---------- background pattern picker + strength ----------
+    const patGrid = document.getElementById('pat-grid');
+    PATTERNS.forEach(src => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pat';
+      b.dataset.p = src;
+      b.setAttribute('role', 'radio');
+      const name = src === 'none' ? 'None' : src.replace(/^.*\//, '').replace('.svg', '').replace(/-/g, ' ');
+      b.title = name;
+      b.setAttribute('aria-label', name);
+      if (src === 'none') b.textContent = 'None';
+      else {
+        b.style.setProperty('--p', `url("${src}")`);
+        tileSize(src).then(([w, h]) => b.style.setProperty('--ms', `64px ${Math.round(64 * h / w)}px`));
+      }
+      b.addEventListener('click', () => { prefs.pattern = src; applyPrefs(); save(); });
+      patGrid.appendChild(b);
+    });
+    const popEl = document.getElementById('popacity');
+    popEl.addEventListener('input', () => { prefs.opacity = +popEl.value / 100; applyPrefs(); save(); });
+    popEl.addEventListener('dblclick', () => { prefs.opacity = 0.1; applyPrefs(); save(); });
+    popEl.addEventListener('pointerup', () => popEl.blur());
+
+    applyFormat();
+    applyPrefs();
+    applyHue();
+    buildHueGradient();
+    syncHue();
+    syncTheme();
+    render();
+  </script>
+
+  <script>
+    /* M3 Expressive slider look: wraps every range input, keeps the native input on top for input/keys/a11y */
+    (() => {
+      const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+      document.querySelectorAll('input[type=range]').forEach(input => {
+        const wrap = document.createElement('div');
+        wrap.className = 'm3e-slider';
+        wrap.innerHTML = '<div class="m3e-a"></div><div class="m3e-i"></div><div class="m3e-h"></div>';
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        const [a, i, h] = wrap.children;
+        const GAP = 6;
+
+        const update = () => {
+          const min = +input.min, max = +input.max;
+          const f = Math.min(1, Math.max(0, (+input.value - min) / (max - min)));
+          const W = wrap.clientWidth;
+          if (!W) return;
+          const x = f * W;
+          const aw = Math.max(0, x - GAP), il = Math.min(W, x + GAP);
+          wrap.style.setProperty('--w', W + 'px');
+          a.style.width = aw + 'px';
+          i.style.left = il + 'px';
+          i.style.right = '0';
+          i.style.backgroundPosition = -il + 'px 0';
+          h.style.left = x + 'px';
+        };
+        const syncTrack = () => {
+          const t = input.style.getPropertyValue('--track');
+          if (t) wrap.style.setProperty('--track', t); else wrap.style.removeProperty('--track');
+        };
+
+        // keep visuals in sync when code sets input.value directly
+        Object.defineProperty(input, 'value', {
+          get() { return desc.get.call(this); },
+          set(v) { desc.set.call(this, v); update(); }
+        });
+        input.addEventListener('input', update);
+        new ResizeObserver(update).observe(wrap);
+        new MutationObserver(syncTrack).observe(input, { attributes: true, attributeFilter: ['style'] });
+        syncTrack();
+        update();
+      });
+    })();
+  </script>
+</body>
+
+</html>
