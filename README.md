@@ -8,6 +8,8 @@ A minimalist, browser-based Material You wallpaper generator with customizable p
 
 ## Credits
 
-Created by **Stumbling** (Discord) / [@apollo79](https://github.com/apollo79).
+Created by 
+- **Zurvan** (Discord) / [@georgestafilidis](https://github.com/georgestafilidis) 
+- **Stumbling** (Discord) / [@apollo79](https://github.com/apollo79)
 
 *This repository is hosted on GitHub Pages by [@hthienloc](https://github.com/hthienloc).*
