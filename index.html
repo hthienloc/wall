@@ -1257,6 +1257,7 @@
         <button type="button" class="icon-btn" id="collapse" title="Minimize panel (S)" aria-label="Minimize panel" aria-expanded="true"><span class="ms" aria-hidden="true">menu_open</span></button>
         <button type="button" class="icon-btn" id="help-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><span class="ms" aria-hidden="true">keyboard</span></button>
         <span class="tune-bar-spacer"></span>
+        <button type="button" class="icon-btn bar-extra" id="surprise-btn" title="Surprise me (U)" aria-label="Surprise me"><span class="ms" aria-hidden="true">casino</span></button>
         <button type="button" class="icon-btn bar-extra" id="import-json" title="Import a layout from JSON (or drop the file onto the page)" aria-label="Import JSON"><span class="ms" aria-hidden="true">upload_file</span></button>
         <div class="menu-wrap bar-extra">
           <button type="button" class="icon-btn" id="export-btn" title="Export" aria-label="Export" aria-haspopup="menu" aria-expanded="false"><span class="ms" aria-hidden="true">download</span></button>
@@ -1425,7 +1426,7 @@
       <h2 id="shortcuts-title">Keyboard shortcuts</h2>
       <button type="button" class="icon-btn" id="shortcuts-close" title="Close (Esc)" aria-label="Close"><span class="ms" aria-hidden="true">close</span></button>
     </div>
-    <div class="dlg-body" tabindex="-1"><section class="dlg-group"><h3>General</h3><div class="dlg-row"><span>Show this cheat sheet</span><span class="dlg-keys"><kbd>?</kbd></span></div><div class="dlg-row"><span>Add a shape (open or close the picker)</span><span class="dlg-keys"><kbd>N</kbd></span></div><div class="dlg-row"><span>Add a random blob</span><span class="dlg-keys"><kbd>B</kbd></span></div><div class="dlg-row"><span>Undo<br><small>or Ctrl+Z</small></span><span class="dlg-keys"><kbd>Z</kbd></span></div><div class="dlg-row"><span>Redo<br><small>or Ctrl+Y</small></span><span class="dlg-keys"><kbd>Y</kbd></span></div><div class="dlg-row"><span>Export PNG 2× / 1×<br><small>Shift+E for 1×</small></span><span class="dlg-keys"><kbd>E</kbd></span></div><div class="dlg-row"><span>Minimize or expand the panel</span><span class="dlg-keys"><kbd>S</kbd></span></div><div class="dlg-row"><span>Hide or show the panel completely</span><span class="dlg-keys"><kbd>Shift</kbd><kbd>S</kbd></span></div><div class="dlg-row"><span>Light / dark theme</span><span class="dlg-keys"><kbd>Enter</kbd></span></div><div class="dlg-row"><span>Clear everything (twice)</span><span class="dlg-keys"><kbd>R</kbd></span></div></section><section class="dlg-group"><h3>Selected shape</h3><div class="dlg-row"><span>Previous / next shape</span><span class="dlg-keys"><kbd>[</kbd><kbd>]</kbd></span></div><div class="dlg-row"><span>Deselect</span><span class="dlg-keys"><kbd>Esc</kbd></span></div><div class="dlg-row"><span>Delete<br><small>or Backspace</small></span><span class="dlg-keys"><kbd>Del</kbd></span></div><div class="dlg-row"><span>Reshape blob / random shape</span><span class="dlg-keys"><kbd>M</kbd></span></div><div class="dlg-row"><span>Next color</span><span class="dlg-keys"><kbd>C</kbd></span></div><div class="dlg-row"><span>Pick a palette color</span><span class="dlg-keys"><kbd>1</kbd><kbd>–</kbd><kbd>8</kbd></span></div><div class="dlg-row"><span>Next overlap color<br><small>Shift+O for previous</small></span><span class="dlg-keys"><kbd>O</kbd></span></div><div class="dlg-row"><span>Layer forward / back<br><small>Shift for front / back</small></span><span class="dlg-keys"><kbd>↑</kbd><kbd>↓</kbd></span></div><div class="dlg-row"><span>Reset rotation</span><span class="dlg-keys"><kbd>0</kbd></span></div><div class="dlg-row"><span>Resize (on the wallpaper)</span><span class="dlg-keys"><kbd>Scroll</kbd></span></div><div class="dlg-row"><span>Rotate<br><small>add Ctrl for fine</small></span><span class="dlg-keys"><kbd>Shift</kbd><kbd>Scroll</kbd></span></div></section><section class="dlg-group"><h3>Background</h3><div class="dlg-row"><span>Next pattern<br><small>Shift+P for previous</small></span><span class="dlg-keys"><kbd>P</kbd></span></div><div class="dlg-row"><span>Pattern strength</span><span class="dlg-keys"><kbd>−</kbd><kbd>+</kbd></span></div><div class="dlg-row"><span>Pattern size</span><span class="dlg-keys"><kbd>,</kbd><kbd>.</kbd></span></div></section><section class="dlg-group"><h3>Controls</h3><div class="dlg-row"><span>Move between controls</span><span class="dlg-keys"><kbd>Tab</kbd></span></div><div class="dlg-row"><span>Choose inside a group (colors, patterns, formats…)</span><span class="dlg-keys"><kbd>←</kbd><kbd>→</kbd></span></div><div class="dlg-row"><span>Adjust a slider<br><small>double-click to reset</small></span><span class="dlg-keys"><kbd>←</kbd><kbd>→</kbd></span></div></section></div>
+    <div class="dlg-body" tabindex="-1"><section class="dlg-group"><h3>General</h3><div class="dlg-row"><span>Show this cheat sheet</span><span class="dlg-keys"><kbd>?</kbd></span></div><div class="dlg-row"><span>Add a shape (open or close the picker)</span><span class="dlg-keys"><kbd>N</kbd></span></div><div class="dlg-row"><span>Add a random blob</span><span class="dlg-keys"><kbd>B</kbd></span></div><div class="dlg-row"><span>Undo<br><small>or Ctrl+Z</small></span><span class="dlg-keys"><kbd>Z</kbd></span></div><div class="dlg-row"><span>Redo<br><small>or Ctrl+Y</small></span><span class="dlg-keys"><kbd>Y</kbd></span></div><div class="dlg-row"><span>Export PNG 2× / 1×<br><small>Shift+E for 1×</small></span><span class="dlg-keys"><kbd>E</kbd></span></div><div class="dlg-row"><span>Surprise me (randomize)</span><span class="dlg-keys"><kbd>U</kbd></span></div><div class="dlg-row"><span>Minimize or expand the panel</span><span class="dlg-keys"><kbd>S</kbd></span></div><div class="dlg-row"><span>Hide or show the panel completely</span><span class="dlg-keys"><kbd>Shift</kbd><kbd>S</kbd></span></div><div class="dlg-row"><span>Light / dark theme</span><span class="dlg-keys"><kbd>Enter</kbd></span></div><div class="dlg-row"><span>Clear everything (twice)</span><span class="dlg-keys"><kbd>R</kbd></span></div></section><section class="dlg-group"><h3>Selected shape</h3><div class="dlg-row"><span>Previous / next shape</span><span class="dlg-keys"><kbd>[</kbd><kbd>]</kbd></span></div><div class="dlg-row"><span>Deselect</span><span class="dlg-keys"><kbd>Esc</kbd></span></div><div class="dlg-row"><span>Delete<br><small>or Backspace</small></span><span class="dlg-keys"><kbd>Del</kbd></span></div><div class="dlg-row"><span>Reshape blob / random shape</span><span class="dlg-keys"><kbd>M</kbd></span></div><div class="dlg-row"><span>Next color</span><span class="dlg-keys"><kbd>C</kbd></span></div><div class="dlg-row"><span>Pick a palette color</span><span class="dlg-keys"><kbd>1</kbd><kbd>–</kbd><kbd>8</kbd></span></div><div class="dlg-row"><span>Next overlap color<br><small>Shift+O for previous</small></span><span class="dlg-keys"><kbd>O</kbd></span></div><div class="dlg-row"><span>Layer forward / back<br><small>Shift for front / back</small></span><span class="dlg-keys"><kbd>↑</kbd><kbd>↓</kbd></span></div><div class="dlg-row"><span>Reset rotation</span><span class="dlg-keys"><kbd>0</kbd></span></div><div class="dlg-row"><span>Resize (on the wallpaper)</span><span class="dlg-keys"><kbd>Scroll</kbd></span></div><div class="dlg-row"><span>Rotate<br><small>add Ctrl for fine</small></span><span class="dlg-keys"><kbd>Shift</kbd><kbd>Scroll</kbd></span></div></section><section class="dlg-group"><h3>Background</h3><div class="dlg-row"><span>Next pattern<br><small>Shift+P for previous</small></span><span class="dlg-keys"><kbd>P</kbd></span></div><div class="dlg-row"><span>Pattern strength</span><span class="dlg-keys"><kbd>−</kbd><kbd>+</kbd></span></div><div class="dlg-row"><span>Pattern size</span><span class="dlg-keys"><kbd>,</kbd><kbd>.</kbd></span></div></section><section class="dlg-group"><h3>Controls</h3><div class="dlg-row"><span>Move between controls</span><span class="dlg-keys"><kbd>Tab</kbd></span></div><div class="dlg-row"><span>Choose inside a group (colors, patterns, formats…)</span><span class="dlg-keys"><kbd>←</kbd><kbd>→</kbd></span></div><div class="dlg-row"><span>Adjust a slider<br><small>double-click to reset</small></span><span class="dlg-keys"><kbd>←</kbd><kbd>→</kbd></span></div></section></div>
   </dialog>
 
   <div id="toast" hidden></div>
@@ -1939,6 +1940,8 @@
         undo();
       } else if (k === 'y') {
         redo();
+      } else if (k === 'u') {
+        surpriseMe();
       } else if (k === 'b') {
         addBlob();
       } else if (k === 's') {
@@ -2786,6 +2789,58 @@
     popEl.addEventListener('input', () => { prefs.opacity = +popEl.value / 100; applyPrefs(); save(); });
     popEl.addEventListener('dblclick', () => { prefs.opacity = 0.1; applyPrefs(); save(); });
     popEl.addEventListener('pointerup', () => popEl.blur());
+
+    // ---------- surprise me: randomize color hue, pattern, and generate random shapes ----------
+    const surpriseMe = () => {
+      // 1. Randomize color hue
+      prefs.hue = Math.floor(Math.random() * 360);
+      syncHue();
+      applyHue();
+      buildHueGradient();
+
+      // 2. Randomize background pattern & strength
+      prefs.pattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];
+      prefs.opacity = +(rnd(0.06, 0.25)).toFixed(2);
+      applyPrefs();
+
+      // 3. Generate 2 to 5 random shapes/blobs
+      const count = 2 + Math.floor(Math.random() * 4); // 2..5
+      const k = Math.min(CW, CH) / 1080;
+      layers.length = 0;
+      for (let i = 0; i < count; i++) {
+        const isBlob = Math.random() < 0.25;
+        const size = Math.round(rnd(300, 950) * k);
+        const l = {
+          size,
+          x: Math.round(CW / 2 - size / 2 + rnd(-CW / 3, CW / 3)),
+          y: Math.round(CH / 2 - size / 2 + rnd(-CH / 3, CH / 3)),
+          rot: Math.round(rnd(0, 360)),
+          fill: randomFill()
+        };
+        if (isBlob) {
+          l.d = randomBlob();
+        } else {
+          l.shape = Math.floor(Math.random() * all.length);
+        }
+        if (i > 0 && Math.random() < 0.75) {
+          l.overlap = randomOverlap(l.fill);
+        } else {
+          l.overlap = 'none';
+        }
+        layers.push(l);
+      }
+      active = null;
+      commit();
+      toast('🎲 Generated random wallpaper!', 2000);
+    };
+
+    const surpriseBtn = document.getElementById('surprise-btn');
+    if (surpriseBtn) {
+      surpriseBtn.addEventListener('click', e => {
+        e.currentTarget.blur();
+        surpriseMe();
+      });
+    }
 
     applyFormat();
     applyPrefs();
